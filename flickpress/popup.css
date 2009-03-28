@@ -1,0 +1,40 @@
+p.fperror {
+	border: 1px solid #f00;
+	background-color: #fcc;
+}
+
+body {
+	background-color: #fff;
+}
+
+#popupmenu a {
+	text-decoration: none;
+	font-weight: bold;
+}
+
+#popupmenu {
+   margin: 0;
+   list-style: none;
+   padding-left: 11px;
+	background-color: #eee;
+}
+
+#popupmenu a {
+   font-size: 16px;
+   padding: 5px 7px;
+   line-height: 30px;
+}
+
+#popupmenu a.current {
+	background-color: #fff;
+}
+
+#popupmenu li {
+   display: inline;
+   line-height: 200%;
+   list-style: none;
+   text-align: center;
+   white-space: nowrap;
+   margin: 0;
+   padding: 0;
+}
