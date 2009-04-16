@@ -3,13 +3,13 @@ Contributors: isaacwedin
 Tags: images, photos, flickr
 Requires at least: 2.7
 Tested up to 2.7.1
-Stable tag: 0.6
+Stable tag: 0.7
 
 flickpress is a tool to insert Flickr photos into your posts.
 
 == Description ==
 
-flickpress adds a button to the post editor to insert Flickr photos into WordPress posts. The button launches a popup tool where Flickr users can be added via their email addresses. Previously-entered Flickr users are stored in a database table. At Tools:flickpress users can be removed. Photos may be browsed by recentness, tag, and photoset. Click through to a photo to insert a variety of sizes, adding the image's Flickr title as a caption if desired.
+flickpress adds a button to the post editor to insert Flickr photos into WordPress posts. The button launches a popup tool where Flickr users can be added via their email addresses. Previously-entered Flickr users are stored in a database table. At Tools:flickpress users can be removed. Photos may be browsed by recentness, tag, and photoset. Click through to a photo to insert a variety of sizes, adding the image's Flickr title as a caption if desired. There is also a search function to find Creative Commons and public domain photos to use in your posts.
 
 == Installation ==
 
