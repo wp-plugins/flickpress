@@ -313,11 +313,11 @@ if ($_GET['action'] == 'showphoto') {
 	echo '<p>' . __('<strong>License:</strong>','flickpress') . '<br />';
 	foreach ($licenses as $license) {
 		if ($license['id'] == $photoinfo['license']) {
-			echo '<a href="' . $license['url'] . '">' . $license['name'] . '</a>';
+			echo '<a href="' . $license['url'] . '" target="_blank">' . $license['name'] . '</a><br />';
 		}
 	}
-	echo '</p>
-	<p><input name="add_caption" id="add_caption" value="1" type="checkbox" checked="checked"> <label for="add_caption">' . __('Caption the inserted image with the photo title and owner.','flickpress') . '</label></p>
+	echo __('Please be sure that your use is compatible with the license.','flickpress') . '</p>
+	<p><input name="add_caption" id="add_caption" value="1" type="checkbox" checked="checked"> <label for="add_caption">' . __('Caption the inserted image with the photo title and owner (required for attribution licenses).','flickpress') . '</label></p>
 	<p>' . __('<strong>Click a size to add it to your post:</strong>','flickpress') . '<br />
 	';
 	foreach ($finserts as $finsert) {
