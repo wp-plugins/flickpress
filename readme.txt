@@ -1,15 +1,15 @@
 === flickpress ===
 Contributors: isaacwedin
 Tags: images, photos, flickr
-Requires at least: 2.7
-Tested up to 2.7.1
-Stable tag: 0.7
+Requires at least: 2.8
+Tested up to 2.8
+Stable tag: 0.8
 
 flickpress is a tool to insert Flickr photos into your posts.
 
 == Description ==
 
-flickpress adds a button to the post editor to insert Flickr photos into WordPress posts. The button launches a popup tool where Flickr users can be added via their email addresses. Previously-entered Flickr users are stored in a database table. At Tools:flickpress users can be removed. Photos may be browsed by recentness, tag, and photoset. Click through to a photo to insert a variety of sizes, adding the image's Flickr title as a caption if desired. There is also a search function to find Creative Commons and public domain photos to use in your posts.
+flickpress adds a button to the post editor to insert Flickr photos into WordPress posts. Add Flickr users by entering their email addresses. Previously-entered Flickr users are stored in a database table - at Tools:flickpress users can be removed. Photos may be browsed by recentness, tag, and photoset. Click through to a photo to insert a variety of sizes, adding the image's Flickr title as a caption if desired. There is also a search function to find Creative Commons, Flickr Commons, and government photos to use in your posts.
 
 == Installation ==
 
@@ -25,7 +25,4 @@ There is a simple template function available for use in your sidebar or other s
 
 == Widget ==
 
-The widget just packages the template function in convenient widget form. To
-use it, activate it through the 'Plugins' menu in WordPress and add it to your
-sidebar through the 'Widgets' menu. It requires a function in the main plugin,
-so you'll need to have both activated to use it.
+The widget just packages the template function in convenient widget form. To use it, activate it through the 'Plugins' menu in WordPress and add it to your sidebar through the 'Widgets' menu. It requires some things in the main plugin, so you'll need to have both activated.
