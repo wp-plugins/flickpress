@@ -2,8 +2,8 @@
 /*
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
-Description: A multi-user flickr tool for WordPress. Creates tables to store Flickr ids and cache data. Last tested and working with WordPress 2.7.1. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 0.7
+Description: A multi-user flickr tool for WordPress. Creates tables to store Flickr ids and cache data. Last tested and working with WordPress 2.8. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
+Version: 0.8
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
@@ -15,44 +15,92 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-This program makes use of the phpflickr library, which is licensed under the Lesser GPL - see included version of the library for license and author details.
+This program makes use of Dan Coulter's phpflickr library, which is licensed under the GNU Lesser GPL - see the included version of the library for details.
 */
 
-require_once(ABSPATH . 'wp-content/plugins/flickpress/buttons.php');
 require_once(ABSPATH . 'wp-content/plugins/flickpress/include.php');
 
-// only users with "manage options" permission should see the Options page
+$flickpress_url = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress';
+
+function flickpress_mce_buttons($buttons) {
+   array_push($buttons, "flickpress");
+   return $buttons;
+}
+
+function flickpress_mce_external_plugins($plugins) {
+   global $flickpress_url;
+   $plugins['flickpress'] = $flickpress_url . '/tinymce/v3/editor_plugin.js';
+   return $plugins;
+}
+
+// Add a button to the HTML editor (borrowed from Kimili Flash Embed)
+function fp_add_quicktags() {
+   $buttonshtml = '<input type="button" class="ed_button" onclick="edflickpress(); return false;" title="' . __('Insert Flickr photos','flickpress') . '" value="' . __('Flickr','flickpress') . '" />';
+?>
+<script type="text/javascript" charset="utf-8">
+// <![CDATA[
+   (function(){
+      if (typeof jQuery === 'undefined') {
+         return;
+      }
+      jQuery(document).ready(function(){
+         jQuery("#ed_toolbar").append('<?php echo $buttonshtml; ?>');
+      });
+   }());
+// ]]>
+</script>
+<?php
+}
+
+// Load the javascript for the popup tool.
+function flickpress_popup_javascript() {
+   echo '
+<script type="text/javascript">
+//<![CDATA[
+function edflickpress() {
+   tb_show("' . __('flickpress: insert Flickr photos','flickpress') . '","' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users&amp;TB_iframe=true",false);
+}
+//]]>
+</script>
+';
+}
+
+function flickpress_options_init() {
+	register_setting('flickpressoptions_options','flickpress_options','flickpress_sanitize');
+}
+
+function flickpress_sanitize($input) {
+	$input['apikey'] = wp_filter_nohtml_kses($input['apikey']);
+	$input['usecap'] = wp_filter_nohtml_kses($input['usecap']);
+	return $input;
+}
+
+// only users with "manage_options" permission should see the Options page
 function flickpress_add_options_page() {
-	add_options_page('flickpress', 'flickpress', 'manage_options', basename(__FILE__), 'flickpress_options_subpanel');
+	add_options_page('flickpress', 'flickpress', 'manage_options', 'flickpress_options', 'flickpress_options_subpanel');
 }
 
 // generates the flickpress Options subpanel
 function flickpress_options_subpanel() {
-	global $flickpress_options;
-	if (isset($_POST['flickpress_options_update'])) { // update the options and refresh the options array with the updated options
-		$flickpress_updated_options = array();
-		$flickpress_updated_options = $_POST;
-		add_option('flickpress_options');
-		update_option('flickpress_options', $flickpress_updated_options);
-		$flickpress_options = get_option('flickpress_options');
-		echo '<div class="updated">' . __('flickpress options updated.','flickpress') . "</div>\n";
-	}
 	echo '
 	<div class="wrap">
 	<h2>' . __('flickpress options','flickpress') . '</h2>
-	<form name="flickpress_options" method="post">
-	<input type="hidden" name="flickpress_options_update" value="update" />
+	<form method="post" action="options.php">
+';
+	settings_fields('flickpressoptions_options');
+	$flickpress_options = get_option('flickpress_options');
+	echo '
 	<fieldset class="options">
 	<table class="form-table">
 		<tbody>
 					 <tr>
 								<th scope="row">' . __('flickr API key:','flickpress') . '</th>
-								<td><input name="apikey" type="text" id="apikey" value="' . $flickpress_options['apikey'] . '" size="20"><br />
-					 ' . __('Enter your <a href="http://flickr.com/services/api/keys/apply/">flickr API key</a> here. This is required for the plugin to work.','flickpress') . '</td>
+								<td><input name="flickpress_options[apikey]" type="text" value="' . $flickpress_options['apikey'] . '" size="20"><br />
+					 ' . __('Enter your <a href="http://flickr.com/services/api/keys/">flickr API key</a> here. This is required for the plugin to work.','flickpress') . '</td>
 					 </tr>
 		<tr>
 			<th scope="row">' . __('Capability required to use flickpress:','flickpress') . '</th>
-			<td><input name="usecap" type="text" id="usecap" value="' . $flickpress_options['usecap'] . '" size="20"><br />
+			<td><input name="flickpress_options[usecap]" type="text" value="' . $flickpress_options['usecap'] . '" size="20"><br />
 		' . __('You probably want to use <code>edit_posts</code>, but you could also use <code>upload_files</code>, <code>publish_posts</code> or any other capability you want.','flickpress') . '</td>
 		</tr>
 		</tbody>
@@ -64,8 +112,6 @@ function flickpress_options_subpanel() {
 </div>
 ';
 }
-
-add_action('admin_menu', 'flickpress_add_options_page');
 
 // makes the flickpress Management page
 function flickpress_management() {
@@ -181,7 +227,8 @@ if (isset($_GET['activate']) && $_GET['activate'] == 'true') {
 
 // a simple template function to display photos in a sidebar or somesuch
 function flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered') {
-	global $flickpress_options, $table_prefix;
+	$flickpress_options = get_option('flickpress_options');
+	global $table_prefix;
 	if (isset($flickpress_options['apikey'])) {
 		$flick = new phpFlickr($flickpress_options['apikey']);
 		$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
@@ -201,5 +248,13 @@ function flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpcla
 	}
 	return;
 }
+
+add_action('edit_form_advanced','fp_add_quicktags');
+add_action('edit_page_form','fp_add_quicktags');
+add_action('admin_print_scripts','flickpress_popup_javascript');
+add_filter('mce_external_plugins','flickpress_mce_external_plugins');
+add_filter('mce_buttons','flickpress_mce_buttons');
+add_action('admin_init','flickpress_options_init');
+add_action('admin_menu', 'flickpress_add_options_page');
 
 ?>

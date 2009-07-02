@@ -7,17 +7,6 @@ load_plugin_textdomain('flickpress');
 // get phpflickr stuff
 require_once( ABSPATH . 'wp-content/plugins/flickpress/phpflickr/phpFlickr.php');
 
-// fill the options array with the stored data if it's there
-$filez_options = array();
-if (get_option('flickpress_options')) {
-	$flickpress_options = get_option('flickpress_options');
-}
-
-// default capability is edit_posts
-if (empty($flickpress_options['capability'])) {
-	$flickpress_options['capability'] = 'edit_posts';
-}
-
 function flickpress_check_key ($key) {
 	$f = new phpFlickr($key);
 	$check = $f->test_echo();
