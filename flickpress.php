@@ -3,7 +3,7 @@
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
 Description: A multi-user flickr tool for WordPress. Creates tables to store Flickr ids and cache data. Last tested and working with WordPress 2.8. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 0.8
+Version: 0.9
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
@@ -89,20 +89,42 @@ function flickpress_options_subpanel() {
 ';
 	settings_fields('flickpressoptions_options');
 	$flickpress_options = get_option('flickpress_options');
+	if (empty($flickpress_options['usecap'])) {
+		$flickpress_options['usecap'] = 'edit_posts';
+	}
+	if (!empty($flickpress_options['apikey'])) {
+		if (!flickpress_check_key($flickpress_options['apikey'])) {
+			echo "\n<div id='flickpress-warning' class='updated fade'><p><strong>Error:</strong> Your Flickr API key seems to be invalid, please verify it is correct.</p></div>\n";
+		}
+	}
+	if (!current_user_can($flickpress_options['usecap'])) { // they're an admin, so the capability *must* be wrong...
+		echo "\n<div id='flickpress-warning' class='updated fade'><p><strong>Error:</strong> The capability you have entered below is incorrect.</p></div>\n";
+	}
 	echo '
 	<fieldset class="options">
 	<table class="form-table">
 		<tbody>
 					 <tr>
 								<th scope="row">' . __('flickr API key:','flickpress') . '</th>
-								<td><input name="flickpress_options[apikey]" type="text" value="' . $flickpress_options['apikey'] . '" size="20"><br />
+								<td><input name="flickpress_options[apikey]" type="text" value="' . $flickpress_options['apikey'] . '" size="30"><br />
 					 ' . __('Enter your <a href="http://flickr.com/services/api/keys/">flickr API key</a> here. This is required for the plugin to work.','flickpress') . '</td>
 					 </tr>
 		<tr>
 			<th scope="row">' . __('Capability required to use flickpress:','flickpress') . '</th>
 			<td><input name="flickpress_options[usecap]" type="text" value="' . $flickpress_options['usecap'] . '" size="20"><br />
-		' . __('You probably want to use <code>edit_posts</code>, but you could also use <code>upload_files</code>, <code>publish_posts</code> or any other capability you want.','flickpress') . '</td>
+		' . __('You should probably use <code>edit_posts</code> but you may use <code>upload_files</code> <code>publish_posts</code> or <a href="http://codex.wordpress.org/Roles_and_Capabilities#Capabilities">any other capability</a>.','flickpress') . '</td>
 		</tr>
+      <tr>
+         <th scope="row">' . __('Captions for inserted photos:','flickpress') . "</th>\n<td>";
+	if (empty($flickpress_options['captions']) || ($flickpress_options['captions'] == 'yes')) {
+		echo '<label><input name="flickpress_options[captions]" type="radio" value="yes" size="5" checked="checked"> Yes</label><br />';
+		echo '<label><input name="flickpress_options[captions]" type="radio" value="no" size="5"> No</label><br />';
+	} else {
+		echo '<label><input name="flickpress_options[captions]" type="radio" value="yes" size="5"> Yes</label><br />';
+		echo '<label><input name="flickpress_options[captions]" type="radio" value="no" size="5" checked="checked"> No</label><br />';
+	}
+	echo __('This turns captions on or off by default. You can still turn them on or off when inserting photos. If you like captions or mostly use photos that require attribution, turn them on by default. If you dislike captions and mostly use photos that do not require attribution (such as your own), then turn them off.','flickpress') . '</td>
+      </tr>
 		</tbody>
 	</table> 
 	</fieldset>
@@ -154,13 +176,13 @@ function flickpress_management() {
 		  <input type="hidden" name="flickpress_update" value="update" />
 		  <table>
 		  <tr>
-					 <th scope="col">' . __('flickrid','flickpress') . '</th>
-					 <th scope="col">' . __('flickrname','flickpress') . '</th>
+					 <th scope="col">' . __('Flickr ID','flickpress') . '</th>
+					 <th scope="col">' . __('Flickr name','flickpress') . '</th>
 					 <th scope="col">' . __('delete','flickpress') . '</th>
 		  </tr>
 		  <tr>
-					 <td><input type="text" name="row1[flickrid]" value="" size="5" /></td>
-					 <td><input type="text" name="row1[flickrname]" value="" size="5" /></td>
+					 <td><input type="text" name="row1[flickrid]" value="" size="15" /></td>
+					 <td><input type="text" name="row1[flickrname]" value="" size="15" /></td>
 		<td></td>
 		  </tr>
 		  ';
@@ -168,8 +190,8 @@ function flickpress_management() {
 					 $i = 2;
 					 foreach ((array)$flickrs as $flick) {
 								echo '<tr>
-		<td><input type="hidden" name="row' . $i . '[flickrid]" value="' . $flick['flickrid'] . '" /><input type="text" name="row' . $i . '[flickrid]" value="' . $flick['flickrid'] . '" size="5" /></td>
-					 <td><input type="text" name="row' . $i . '[flickrname]" value="' . $flick['flickrname'] . '" size="5" /></td>
+		<td><input type="hidden" name="row' . $i . '[flickrid]" value="' . $flick['flickrid'] . '" /><input type="text" name="row' . $i . '[flickrid]" value="' . $flick['flickrid'] . '" size="15" /></td>
+					 <td><input type="text" name="row' . $i . '[flickrname]" value="' . $flick['flickrname'] . '" size="15" /></td>
 					 <td><input type="checkbox" name="row' . $i . '[delete]" value="1" /></td>
 		  </tr>';
 								$i++;
@@ -256,5 +278,15 @@ add_filter('mce_external_plugins','flickpress_mce_external_plugins');
 add_filter('mce_buttons','flickpress_mce_buttons');
 add_action('admin_init','flickpress_options_init');
 add_action('admin_menu', 'flickpress_add_options_page');
+
+$flickpress_options = get_option('flickpress_options');
+
+if ( ( !$flickpress_options || empty($flickpress_options['apikey'])) && !isset($_POST['submit']) ) {
+   function flickpress_warning() {
+      echo "\n<div id='flickpress-warning' class='updated fade'><p>".sprintf(__('You must <a href="%1$s">enter your Flickr API key</a> for flickpress to work.'), "options-general.php?page=flickpress_options")."</p></div>\n";
+   }
+   add_action('admin_notices', 'flickpress_warning');
+   return;
+}
 
 ?>

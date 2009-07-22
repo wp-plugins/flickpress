@@ -2,8 +2,8 @@
 Contributors: isaacwedin
 Tags: images, photos, flickr
 Requires at least: 2.8
-Tested up to 2.8
-Stable tag: 0.8
+Tested up to 2.8.2
+Stable tag: 0.9
 
 flickpress is a tool to insert Flickr photos into your posts.
 
@@ -26,3 +26,13 @@ There is a simple template function available for use in your sidebar or other s
 == Widget ==
 
 The widget just packages the template function in convenient widget form. To use it, activate it through the 'Plugins' menu in WordPress and add it to your sidebar through the 'Widgets' menu. It requires some things in the main plugin, so you'll need to have both activated.
+
+== Changelog ==
+
+= 0.9 =
+* Added admin notice for missing Flickr API key.
+* Set "edit_posts" as the default capability to use plugin.
+* Added Flickr API key and capability checks to the settings page.
+* Added option to turn captions on or off by default.
+* Added jquery show/hide for license lists in the popup.
+* Fixed "next page" bug for commons search.
