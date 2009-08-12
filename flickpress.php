@@ -2,18 +2,17 @@
 /*
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
-Description: A multi-user flickr tool for WordPress. Creates tables to store Flickr ids and cache data. Last tested and working with WordPress 2.8. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 0.9
+Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Last tested and working with WordPress 2.8.4. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
+Version: 1.0
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
 
 /* Copyright 2009  Isaac Wedin (email : isaac@familypress.net)
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version. 
+http://www.opensource.org/licenses/gpl-license.php
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 This program makes use of Dan Coulter's phpflickr library, which is licensed under the GNU Lesser GPL - see the included version of the library for details.
 */
