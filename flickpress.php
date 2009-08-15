@@ -242,9 +242,7 @@ function flickpress_delete($id) {
 }
 
 // run the table installer when the plugin is activated
-if (isset($_GET['activate']) && $_GET['activate'] == 'true') {
-		  add_action('init', 'flickpress_table_install');
-}
+register_activation_hook( __FILE__, 'flickpress_table_install');
 
 // a simple template function to display photos in a sidebar or somesuch
 function flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered') {
