@@ -2,8 +2,8 @@
 /*
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
-Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Last tested and working with WordPress 2.8.4. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 1.0
+Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Last tested and working with WordPress 2.8.6. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
+Version: 1.1
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */

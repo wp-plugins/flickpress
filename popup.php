@@ -1,6 +1,6 @@
 <?php
 /* flickpress popup tool */
-require_once( dirname(dirname(dirname(dirname(__FILE__)))) . '/wp-config.php');
+require_once( dirname(dirname(dirname(dirname(__FILE__)))) . '/wp-load.php');
 require_once( ABSPATH . 'wp-content/plugins/flickpress/include.php');
 $flickpress_options = get_option('flickpress_options');
 if ($user_ID == '')

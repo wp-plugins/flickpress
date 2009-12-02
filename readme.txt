@@ -2,8 +2,8 @@
 Contributors: isaacwedin
 Tags: images, photos, flickr
 Requires at least: 2.8
-Tested up to 2.8.4
-Stable tag: 1.0
+Tested up to 2.8.6
+Stable tag: 1.1
 
 flickpress is a tool to insert Flickr photos into your posts, plus a widget to
 display recent Flickr photos.
@@ -37,6 +37,9 @@ and text (such as HTML tags) to display before and after each image. Some tips:
 * Most themes include a class called "centered" that will center your images in the sidebar.
 
 == Changelog ==
+
+= 1.1 =
+* Changed popup.php to use wp-load.php instead of deprecated wp-config.php.
 
 = 1.0 =
 * Added widget options to display something (HTML tags) before and after each image.
