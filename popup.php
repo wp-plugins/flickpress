@@ -49,6 +49,10 @@ function insertcode(linkcode,docaption,caption,divwidth) {
    return;
 }
 jQuery(document).ready(function() {
+	jQuery("span.fpinserted").hide();
+	jQuery("a.fpinserting").click(function(){
+		jQuery("span.fpinserted").show();
+	});
    jQuery("div.fpshowhide").hide();
    jQuery("a.fptoggle").click(function(){
       jQuery("div.fpshowhide").toggle();
@@ -393,7 +397,7 @@ if ($_GET['action'] == 'showphoto') {
 		$fcodes[$size['label']] = '<img alt="' . $photoinfo['title'] . '" src="' . $size['source'] . '" title="' . $photoinfo['title'] . '" width="' . $size['width'] . '" height="' . $size['height'] . '" />';
 		$flinked[$size['label']] = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $fcodes[$size['label']] . '</a>';
 		$divwidth = $size['width'] + 10;
-		$finserts[$size['label']] = '<strong><a href="#" onClick="insertcode(\'' . js_escape($flinked[$size['label']]) . '\',document.getElementById (\'add_caption\').checked,\'' . js_escape($caption) . '\',' . $divwidth . '); return false;">' . $size['label'] . "</a></strong> (" . $size['width'] . 'x' . $size['height'] . ")<br />\n";
+		$finserts[$size['label']] = '<strong><a class="fpinserting" href="#" onClick="insertcode(\'' . js_escape($flinked[$size['label']]) . '\',document.getElementById (\'add_caption\').checked,\'' . js_escape($caption) . '\',' . $divwidth . '); return false;">' . $size['label'] . "</a></strong> (" . $size['width'] . 'x' . $size['height'] . ")<br />\n";
 	}
 	if (isset($fcodes['Small'])) {
 		$popcode = $fcodes['Small'];
@@ -402,7 +406,7 @@ if ($_GET['action'] == 'showphoto') {
 	} else {
 		$popcode = __('Odd, there is no image to display...','flickpress');
 	}
-	echo '<p>' . $popcode . "</p>\n";
+	echo '<div id="flickleft"><p>' . $popcode . "</p>\n";
 	if (!empty($photoinfo['description'])) {
 		echo '<p>' . __('<strong>Description:</strong>','flickpress') . '<br />' . $photoinfo['description'] . "</p>\n";
 	}
@@ -417,19 +421,19 @@ if ($_GET['action'] == 'showphoto') {
 			}
 		}
 	}
-	if ($flickpress_options['captions'] == 'yes') {
+	if (empty($flickpress_options['captions']) || ($flickpress_options['captions'] == 'yes')) {
 		$checked = ' checked="checked"';
 	} else {
 		$checked = '';
 	}
-	echo __('Please be sure that your use is compatible with the photo license.','flickpress') . '</p>
-	<p><input name="add_caption" id="add_caption" value="1" type="checkbox"' . $checked . '> <label for="add_caption">' . __('Caption the inserted image with the photo title and owner (to comply with licenses that require attribution).','flickpress') . '</label></p>
+	echo '</p></div>
+	<div id="flickright"><p><input name="add_caption" id="add_caption" value="1" type="checkbox"' . $checked . '> <label for="add_caption">' . __('Caption the inserted image with the photo title and owner (to comply with licenses that require attribution).','flickpress') . '</label></p>
 	<p>' . __('<strong>Click a size to add it to your post:</strong>','flickpress') . '<br />
 	';
 	foreach ($finserts as $finsert) {
 		echo $finsert;
 	}
-	echo "</p>\n";
+	echo "<span class='fpinserted'>" . __('Inserted it!','flickpress') . "</span></p></div>\n<div id='flickfoot'><p>" . __('Please be sure that your use is compatible with the photo license.','flickpress') . '</p>';
 	if (isset($_GET['insearch'])) {
 		if (isset($plus_licenses)) {
 			echo '<p><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($_GET['insearch']) . '&amp;page=' . $_GET['page'] . '&amp;licenses=' . $plus_licenses . '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of photos from your search for &laquo;','flickpress') . $_GET['insearch'] . "&raquo;</a></p>\n</form>\n";
@@ -447,7 +451,7 @@ if ($_GET['action'] == 'showphoto') {
 		}
 		echo '<p><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=' . $_GET['returnto'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $_GET['page'] . $displaytxt . "</a></p>\n</form>\n";
 	}
-	echo '</div>
+	echo '</div></div>
 </body>
 </html>';
 die();

@@ -43,3 +43,22 @@ body {
    margin: 0;
    padding: 0;
 }
+
+#flickleft {
+	width: 280px;
+	float: left;
+}
+
+#flickright {
+	width: 280px;
+	float: right;
+}
+
+#flickfoot {
+	clear: both;
+}
+
+.fpinserted {
+	display: none;
+	font-weight: bold;
+}
