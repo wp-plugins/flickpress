@@ -2,7 +2,10 @@
 /* flickpress popup tool */
 require_once( dirname(dirname(dirname(dirname(__FILE__)))) . '/wp-load.php');
 require_once( ABSPATH . 'wp-content/plugins/flickpress/include.php');
-$flickpress_options = get_option('flickpress_options');
+$flickpress_options = get_option('flickpress_options'); // get the options
+if (empty($flickpress_options['insclass'])) { // if class is empty use "alignnone"
+	$flickpress_options['insclass'] = 'alignnone';
+}
 if ($user_ID == '')
 	die (__('Try logging in','flickpress'));
 if (!current_user_can($flickpress_options['usecap']))
