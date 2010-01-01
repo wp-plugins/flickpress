@@ -34,7 +34,7 @@ window.focus();
 var winder = window.top;
 function insertcode(linkcode,docaption,caption,divwidth) {
 	if (docaption == "1") {
-		var linkcode = "\n<div class=\"wp-caption alignnone\" style=\"width: " + divwidth + "px\;\">" + linkcode + "<p class=\"wp-caption-text\">" + caption + "</p></div>\n";
+		var linkcode = "\n<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\">" + linkcode + "<p class=\"wp-caption-text\">" + caption + "</p></div>\n";
 	} else {
 		var linkcode = "\n" + linkcode + "\n";
 	}

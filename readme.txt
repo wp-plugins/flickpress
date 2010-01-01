@@ -10,7 +10,7 @@ display recent Flickr photos.
 
 == Description ==
 
-flickpress adds a button to the post editor to insert Flickr photos into WordPress posts. Add Flickr users by entering their email addresses. Previously-entered Flickr users are stored in a database table - at Tools:flickpress users can be removed. Photos may be searched or browsed by recentness, tag, or photoset. Click through to a photo to insert a variety of sizes, adding the image's Flickr title as a caption if desired. In addition to browsing and searching specific users' photos, you may also search Flickr for Creative Commons, Flickr Commons, and government photos.
+flickpress adds a button to the post editor to insert Flickr photos into WordPress posts. Add Flickr users by entering their usernames or email addresses. Previously-entered Flickr users are stored in a database table that can be managed at Tools:flickpress. Photos may be searched or browsed by recentness, tag, or photoset. Click through to a photo to insert a variety of sizes, adding the image's Flickr title as a caption if desired. In addition to browsing and searching specific users' photos, you may also search Flickr for Creative Commons, Flickr Commons, and government photos.
 
 == Installation ==
 
@@ -18,7 +18,7 @@ flickpress adds a button to the post editor to insert Flickr photos into WordPre
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 3. Enter your Flickr API key at Settings:flickpress and configure other
 options if desired.
-4. If you wish to use the caption function, your theme should include some caption-related CSS - see the default theme for an example.
+4. If you wish to use the caption function, your theme should include some caption-related style stuff - see the default theme for an example.
 
 == Template Function ==
 
@@ -37,6 +37,9 @@ and text (such as HTML tags) to display before and after each image. Some tips:
 * Most themes include a class called "centered" that will center your images in the sidebar.
 
 == Changelog ==
+
+= 1.3 =
+* Added caption alignment class option.
 
 = 1.2 =
 * Tested for WP 2.9.

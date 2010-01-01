@@ -3,12 +3,12 @@
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
 Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Last tested and working with WordPress 2.9. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 1.2
+Version: 1.3
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
 
-/* Copyright 2009  Isaac Wedin (email : isaac@familypress.net)
+/* Copyright 2009, 2010 Isaac Wedin (email : isaac@familypress.net)
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version. 
 http://www.opensource.org/licenses/gpl-license.php
 
@@ -71,6 +71,7 @@ function flickpress_options_init() {
 function flickpress_sanitize($input) {
 	$input['apikey'] = wp_filter_nohtml_kses($input['apikey']);
 	$input['usecap'] = wp_filter_nohtml_kses($input['usecap']);
+	$input['insclass'] = wp_filter_nohtml_kses($input['insclass']);
 	return $input;
 }
 
@@ -113,6 +114,11 @@ function flickpress_options_subpanel() {
 			<td><input name="flickpress_options[usecap]" type="text" value="' . $flickpress_options['usecap'] . '" size="20"><br />
 		' . __('You should probably use <code>edit_posts</code> but you may use <code>upload_files</code> <code>publish_posts</code> or <a href="http://codex.wordpress.org/Roles_and_Capabilities#Capabilities">any other capability</a>.','flickpress') . '</td>
 		</tr>
+      <tr>
+         <th scope="row">' . __('Class for captioned photos:','flickpress') . '</th>
+         <td><input name="flickpress_options[insclass]" type="text" value="' . $flickpress_options['insclass'] . '" size="20"><br />
+      ' . __('Captioned photos are placed in a <code>div</code> with this class. You probably want to use either <code>alignnone</code> or <code>aligncenter</code>, but your theme may offer other options.','flickpress') . '</td>
+      </tr>
       <tr>
          <th scope="row">' . __('Captions for inserted photos:','flickpress') . "</th>\n<td>";
 	if (empty($flickpress_options['captions']) || ($flickpress_options['captions'] == 'yes')) {
