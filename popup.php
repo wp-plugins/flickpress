@@ -35,11 +35,18 @@ echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www
 //<![CDATA[
 window.focus();
 var winder = window.top;
-function insertcode(linkcode,docaption,caption,divwidth) {
+function insertcode(linkcode,docaption,dodesc,doexif,divwidth) {
 	if (docaption == "1") {
-		var linkcode = "\n<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\">" + linkcode + "<p class=\"wp-caption-text\">" + caption + "</p></div>\n";
+		var linkcode = "<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\">" + linkcode + "\n<p class=\"wp-caption-text\">" + imgcaption + "</p>";
+		if (dodesc == "1") {
+			var linkcode = linkcode + "\n<p class=\"wp-caption flickr-desc\">" + unescape(imgdescription) + "</p>";
+		}
+		if (doexif == "1") {
+			var linkcode = linkcode + "\n" + unescape(imgexif);
+		}
+		var linkcode = linkcode + "</div>\n";
 	} else {
-		var linkcode = "\n" + linkcode + "\n";
+		var linkcode = linkcode + "\n";
 	}
    if ( typeof winder.tinyMCE !== "undefined" && ( winder.ed = winder.tinyMCE.activeEditor ) && !winder.ed.isHidden() ) {
       winder.ed.focus();
@@ -384,8 +391,22 @@ if ($_GET['action'] == 'showphoto') {
 		$plus_licenses = str_replace(' ','+',$_GET['licenses']);
 	}
 	$photoinfo = $flick->photos_getInfo($_GET['photoid'],NULL);
+	$photoexif = $flick->photos_getExif($_GET['photoid'],NULL);
+	foreach ($photoexif['exif'] as $e) {
+		if (empty($fpexif[$e['label']])) {
+			$fpexif[$e['label']] = (empty($e['clean']) ? $e['raw'] : $e['clean']);
+		}
+	}
+	$exiftable = '<table class="flickr-exif"><tbody><tr><td>Camera:</td><td>' . $fpexif['Model'] . '</td></tr><tr><td>Exposure:</td><td>' . $fpexif['ShutterSpeed'] . '</td></tr><tr><td>Aperture:</td><td>' . $fpexif['Aperture'] . '</td></tr><tr><td>Focal Length:</td><td>' . $fpexif['Focal Length'] . '</td></tr><tr><td>Exposure Bias:</td><td>' . $fpexif['Exposure Bias'] . '</td></tr><tr><td>ISO Speed:</td><td>' . $fpexif['ISO Speed'] . '</td></tr><tr><td>Flash:</td><td>' . $fpexif['Flash'] . '</td></tr></tbody></table>';
 	$sizes = $flick->photos_getSizes($_GET['photoid']);
 	$caption = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $photoinfo['title'] . '</a> by <a href="' . $flick->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>';
+	echo '<script type="text/javascript">' . "
+	//<![CDATA[
+	var imgdescription = '" . rawurlencode($photoinfo['description']) . "';
+	var imgcaption = '" . $caption . "';
+	var imgexif = '" . rawurlencode($exiftable) . "';
+	//]]>
+	</script>";
 	if (isset($_GET['insearch'])) {
 		if (isset($_GET['licenses'])) {
 			echo '<h3>' . __('Searched CC-licensed, government, and Flickr Commons photos for &laquo;','flickpress') . $_GET['insearch'] . '&raquo;</h3>
@@ -400,7 +421,7 @@ if ($_GET['action'] == 'showphoto') {
 		$fcodes[$size['label']] = '<img alt="' . $photoinfo['title'] . '" src="' . $size['source'] . '" title="' . $photoinfo['title'] . '" width="' . $size['width'] . '" height="' . $size['height'] . '" />';
 		$flinked[$size['label']] = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $fcodes[$size['label']] . '</a>';
 		$divwidth = $size['width'] + 10;
-		$finserts[$size['label']] = '<strong><a class="fpinserting" href="#" onClick="insertcode(\'' . js_escape($flinked[$size['label']]) . '\',document.getElementById (\'add_caption\').checked,\'' . js_escape($caption) . '\',' . $divwidth . '); return false;">' . $size['label'] . "</a></strong> (" . $size['width'] . 'x' . $size['height'] . ")<br />\n";
+		$finserts[$size['label']] = '<strong><a class="fpinserting" href="#" onClick="insertcode(\'' . js_escape($flinked[$size['label']]) . '\',document.getElementById (\'add_caption\').checked,document.getElementById (\'add_desc\').checked,document.getElementById (\'add_exif\').checked,' . $divwidth . '); return false;">' . $size['label'] . "</a></strong> (" . $size['width'] . 'x' . $size['height'] . ")<br />\n";
 	}
 	if (isset($fcodes['Small'])) {
 		$popcode = $fcodes['Small'];
@@ -410,9 +431,13 @@ if ($_GET['action'] == 'showphoto') {
 		$popcode = __('Odd, there is no image to display...','flickpress');
 	}
 	echo '<div id="flickleft"><p>' . $popcode . "</p>\n";
+	echo '<p>' . __('<strong>Description:</strong>','flickpress') . '<br />';
 	if (!empty($photoinfo['description'])) {
-		echo '<p>' . __('<strong>Description:</strong>','flickpress') . '<br />' . $photoinfo['description'] . "</p>\n";
+		echo $photoinfo['description'] . "</p>\n";
+	} else {
+		echo __('(description is empty)','flickpress') . "</p>\n";
 	}
+	echo '<p>' . __('<strong>EXIF:</strong>','flickpress') . '<br />' . $exiftable . "</p>\n";
 	$licenses = $flick->photos_licenses_getInfo();
 	echo '<p>' . __('<strong>License:</strong>','flickpress') . '<br />';
 	foreach ($licenses as $license) {
@@ -430,18 +455,21 @@ if ($_GET['action'] == 'showphoto') {
 		$checked = '';
 	}
 	echo '</p></div>
-	<div id="flickright"><p><input name="add_caption" id="add_caption" value="1" type="checkbox"' . $checked . '> <label for="add_caption">' . __('Caption the inserted image with the photo title and owner (to comply with licenses that require attribution).','flickpress') . '</label></p>
-	<p>' . __('<strong>Click a size to add it to your post:</strong>','flickpress') . '<br />
-	';
+	<div id="flickright">
+	<p><input name="add_caption" id="add_caption" value="1" type="checkbox"' . $checked . '> <label for="add_caption">' . __('Caption the inserted image with the photo title and owner (to comply with licenses that require attribution).','flickpress') . '</label></p>';
+	echo '<p><input name="add_desc" id="add_desc" value="1" type="checkbox"> <label for="add_desc">' . __('Add the description too.','flickpress') . '</label></p>';
+	echo '<p><input name="add_exif" id="add_exif" value="1" type="checkbox"> <label for="add_exif">' . __('Add a table of EXIF info too.','flickpress') . '</label></p>
+	<p>' . __('<strong>Click a size to add it to your post:</strong>','flickpress') . '</p>
+	<p>';
 	foreach ($finserts as $finsert) {
 		echo $finsert;
 	}
 	echo "<span class='fpinserted'>" . __('Inserted it!','flickpress') . "</span></p></div>\n<div id='flickfoot'><p>" . __('Please be sure that your use is compatible with the photo license.','flickpress') . '</p>';
 	if (isset($_GET['insearch'])) {
 		if (isset($plus_licenses)) {
-			echo '<p><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($_GET['insearch']) . '&amp;page=' . $_GET['page'] . '&amp;licenses=' . $plus_licenses . '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of photos from your search for &laquo;','flickpress') . $_GET['insearch'] . "&raquo;</a></p>\n</form>\n";
+			echo '<p><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($_GET['insearch']) . '&amp;page=' . $_GET['page'] . '&amp;licenses=' . $plus_licenses . '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of photos from your search for &laquo;','flickpress') . $_GET['insearch'] . "&raquo;</a></strong></p>\n</form>\n";
 		} else {
-			echo '<p><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($_GET['insearch']) . '&amp;page=' . $_GET['page'] . '&amp;userid=' . $_GET['userid'] . '&amp;uname=' . $_GET['uname'] . '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of photos from your search for &laquo;','flickpress') . $_GET['insearch'] . "&raquo;</a></p>\n</form>\n";
+			echo '<p><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($_GET['insearch']) . '&amp;page=' . $_GET['page'] . '&amp;userid=' . $_GET['userid'] . '&amp;uname=' . $_GET['uname'] . '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of photos from your search for &laquo;','flickpress') . $_GET['insearch'] . "&raquo;</a></strong></p>\n</form>\n";
 		}
 	} else {
 		if ($_GET['returnto'] == 'sets') {
@@ -452,7 +480,7 @@ if ($_GET['action'] == 'showphoto') {
 		} else {
 			$displaytxt = '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of recent photos.','flickpress');
 		}
-		echo '<p><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=' . $_GET['returnto'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $_GET['page'] . $displaytxt . "</a></p>\n</form>\n";
+		echo '<p><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=' . $_GET['returnto'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $_GET['page'] . $displaytxt . "</a></strong></p>\n</form>\n";
 	}
 	echo '</div></div>
 </body>
