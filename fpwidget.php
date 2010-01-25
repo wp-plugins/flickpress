@@ -4,7 +4,7 @@ Plugin Name: flickpress widget
 Plugin URI: http://familypress.net/flickpress/
 Description: Adds a sidebar widget to dispay Flickr images.
 Author: Isaac Wedin
-Version: 0.7
+Version: 1.5
 Author URI: http://familypress.net/
 */
 
@@ -26,12 +26,16 @@ function widget_fpwidg_init() {
 		$options = get_option('widget_fpwidg');
 		$title = $options['title'];
 		$fpclass = $options['style'];
+		$after = stripslashes(html_entity_decode($options['after'],ENT_QUOTES));
+		$before = stripslashes(html_entity_decode($options['before'],ENT_QUOTES));
 		$email = $options['email'];
 		$numphotos = (int)$options['number'];
-		// These lines generate our output. Widgets can be very complex
-		// but as you can see here, they can also be very, very simple.
+		// These lines generate our output.
+		// First echo out the required stuff.
 		echo $before_widget . $before_title . $title . $after_title;
-		flickpress_photos($email,$numphotos,$before='<p>',$after='</p>',$fpclass);
+		// Now display the Flickr photo(s).
+		flickpress_photos($email,$numphotos,$before,$after,$fpclass);
+		// And echo the required after-widget bit.
 		echo $after_widget;
 	}
 
@@ -42,22 +46,29 @@ function widget_fpwidg_init() {
 		// Get our options and see if we're handling a form submission.
 		$options = get_option('widget_fpwidg');
 		if ( !is_array($options) )
-			$options = array('title'=>'', 'style'=>'', 'email'=>'', 'number'=>'1', 'widgets');
+			$options = array('title'=>'', 'style'=>'', 'email'=>'', 'number'=>'1', 'widgets', 'before'=>'<p>', 'after'=>'</p>');
 		if ( $_POST['fpwidg-submit'] ) {
 			$options['title'] = strip_tags(stripslashes($_POST['fpwidg-title']));
-			$options['email'] = strip_tags(stripslashes($_POST['fpwidg-email']));
+			$options['email'] = sanitize_email($_POST['fpwidg-email']);
 			$options['style'] = strip_tags(stripslashes($_POST['fpwidg-style']));
 			$options['number'] = strip_tags(stripslashes($_POST['fpwidg-number']));
+			// Swap double for single quotes.
+			$options['before'] = htmlentities(str_replace('"',"'",$_POST['fpwidg-before']),ENT_QUOTES);
+			$options['after'] = htmlentities(str_replace('"',"'",$_POST['fpwidg-after']),ENT_QUOTES);
 			update_option('widget_fpwidg', $options);
 		}
 		$title = htmlspecialchars($options['title'], ENT_QUOTES);
 		$style = htmlspecialchars($options['style'], ENT_QUOTES);
 		$email = htmlspecialchars($options['email'], ENT_QUOTES);
+		$before = stripslashes(html_entity_decode($options['before'], ENT_QUOTES));
+		$after = stripslashes(html_entity_decode($options['after'], ENT_QUOTES));
 		$number = (int)$options['number'];
 		// Here is our little form segment. Notice that we don't need a
 		// complete form. This will be embedded into the existing form.
 		echo '<p style="text-align:right;"><label for="fpwidg-title">' . __('Title:') . ' <input style="width: 100px;" id="fpwidg-title" name="fpwidg-title" type="text" value="'.$title.'" /></label></p>';
 		echo '<p style="text-align:right;"><label for="fpwidg-style">' . __('Style class:') . ' <input style="width: 100px;" id="fpwidg-style" name="fpwidg-style" type="text" value="'.$style.'" /></label></p>';
+		echo '<p style="text-align:right;"><label for="fpwidg-before">' . __('Before each image:') . ' <input style="width: 100px;" id="fpwidg-before" name="fpwidg-before" type="text" value="'.$before.'" /></label></p>';
+		echo '<p style="text-align:right;"><label for="fpwidg-after">' . __('After each image:') . ' <input style="width: 100px;" id="fpwidg-after" name="fpwidg-after" type="text" value="'.$after.'" /></label></p>';
 		echo '<p style="text-align:right;"><label for="fpwidg-email">' . __('Flickr email:') . ' <input style="width: 100px;" id="fpwidg-email" name="fpwidg-email" type="text" value="'.$email.'" /></label></p>';
 		echo '<p style="text-align:right;"><label for="fpwidg-number">' . __('Number of images:') . '<select id="fpwidg-number" name="fpwidg-number"' . ">\n";
 		for ($i=1;$i<=10;$i++) {
