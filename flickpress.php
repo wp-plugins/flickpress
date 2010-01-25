@@ -3,7 +3,7 @@
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
 Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Last tested and working with WordPress 2.9.1. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 1.4
+Version: 1.5
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
@@ -255,7 +255,7 @@ function flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpcla
 	$flickpress_options = get_option('flickpress_options');
 	global $table_prefix;
 	if (isset($flickpress_options['apikey'])) {
-		$flick = new phpFlickr($flickpress_options['apikey']);
+		$flick = new phpFlickpress($flickpress_options['apikey']);
 		$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
 		$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
 		$check = $flick->test_echo();

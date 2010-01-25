@@ -12,7 +12,7 @@ if (!current_user_can($flickpress_options['usecap']))
 	die (__('Ask the administrator to promote you, or verify that the capability entered at Settings:flickpress is correct.','flickpress'));
 if (empty($flickpress_options['apikey']))
 	die (__('No Flickr API key found, please enter one at Settings:flickpress.','flickpress'));
-$flick = new phpFlickr($flickpress_options['apikey']);
+$flick = new phpFlickpress($flickpress_options['apikey']);
 $fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
 $flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
 $check = $flick->test_echo();
@@ -37,7 +37,7 @@ window.focus();
 var winder = window.top;
 function insertcode(linkcode,docaption,dodesc,doexif,divwidth) {
 	if (docaption == "1") {
-		var linkcode = "<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\">" + linkcode + "\n<p class=\"wp-caption-text\">" + imgcaption + "</p>";
+		var linkcode = "<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\">" + linkcode + "\n<p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
 		if (dodesc == "1") {
 			var linkcode = linkcode + "\n<p class=\"wp-caption flickr-desc\">" + unescape(imgdescription) + "</p>";
 		}
@@ -143,6 +143,7 @@ if ($_GET['action'] == 'options') {
 	<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=sets&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . __('sets','flickpress') . ' &raquo;</a></strong></li>
 	<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=tags&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . __('tags','flickpress') . ' &raquo;</a></strong></li>
 	<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=recent&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . __('recent','flickpress') . ' &raquo;</a></strong></li>
+	<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=faves&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . __('favorites','flickpress') . ' &raquo;</a></strong></li>
 	</ul>
 	<p><strong>Search:</strong><br />
 	<form name="flickpress_search" method="post" action="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php">
@@ -182,6 +183,42 @@ if ($_GET['action'] == 'recent') {
 			echo $i . " \n";
 		} else {
 			echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=recent&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $i . '">' . $i . "</a> \n";
+		}
+	}
+	echo '</p>
+	</div>
+</body>
+</html>';
+die();
+}
+
+// Display a user's favorite photos
+if ($_GET['action'] == 'faves') {
+	if (isset($_GET['page'])) {
+		$page = $_GET['page'];
+	} else {
+		$page = 1;
+	}
+	$user_info = $flick->people_getInfo($_GET['id']);
+	$photos_url = $user_info['photosurl'];
+	$photos = $flick->favorites_getPublicList($_GET['id'],NULL,NULL,NULL,$per_page,$page);
+	$num_photos = $photos['photos']['total'];
+	echo '<h3>' . $userlink . __(' : favorites','flickpress') . "</h3>\n";
+        echo "\n<p>\n";
+	foreach ((array)$photos['photos']['photo'] as $photo) {
+		$photourl = $flick->buildPhotoURL($photo, 'Square');
+		$imgcode = '<img alt="' . $photo['title'] . '" src="' . $photourl . '" width="75" height="75" />';
+		echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=showphoto&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;photoid=' . $photo['id'] . '&amp;returnto=faves&amp;page=' . $page . '">' . $imgcode . '</a> ';
+		unset($photourl,$imgcode,$flickrcode);
+	}
+	echo "</p>\n";
+	echo "<p>\n";
+	$pages = ceil($num_photos/$per_page);
+	for ($i=1;$i<=$pages;$i++) {
+		if ($i == $page) {
+			echo $i . " \n";
+		} else {
+			echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=faves&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $i . '">' . $i . "</a> \n";
 		}
 	}
 	echo '</p>
@@ -397,13 +434,13 @@ if ($_GET['action'] == 'showphoto') {
 			$fpexif[$e['label']] = (empty($e['clean']) ? $e['raw'] : $e['clean']);
 		}
 	}
-	$exiftable = '<table class="flickr-exif"><tbody><tr><td>Camera:</td><td>' . $fpexif['Model'] . '</td></tr><tr><td>Exposure:</td><td>' . $fpexif['ShutterSpeed'] . '</td></tr><tr><td>Aperture:</td><td>' . $fpexif['Aperture'] . '</td></tr><tr><td>Focal Length:</td><td>' . $fpexif['Focal Length'] . '</td></tr><tr><td>Exposure Bias:</td><td>' . $fpexif['Exposure Bias'] . '</td></tr><tr><td>ISO Speed:</td><td>' . $fpexif['ISO Speed'] . '</td></tr><tr><td>Flash:</td><td>' . $fpexif['Flash'] . '</td></tr></tbody></table>';
+	$exiftable = '<table class="flickr-exif"><tbody><tr><td>' . __('Camera:','flickpress') . '</td><td>' . $fpexif['Model'] . '</td></tr><tr><td>' . __('Exposure:','flickpress') . '</td><td>' . $fpexif['ShutterSpeed'] . '</td></tr><tr><td>' . __('Aperture:','flickpress') . '</td><td>' . $fpexif['Aperture'] . '</td></tr><tr><td>' . __('Focal Length:','flickpress') . '</td><td>' . $fpexif['Focal Length'] . '</td></tr><tr><td>' . __('Exposure Bias:','flickpress') . '</td><td>' . $fpexif['Exposure Bias'] . '</td></tr><tr><td>' . __('ISO Speed:','flickpress') . '</td><td>' . $fpexif['ISO Speed'] . '</td></tr><tr><td>' . __('Flash:','flickpress') . '</td><td>' . $fpexif['Flash'] . '</td></tr></tbody></table>';
 	$sizes = $flick->photos_getSizes($_GET['photoid']);
 	$caption = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $photoinfo['title'] . '</a> by <a href="' . $flick->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>';
 	echo '<script type="text/javascript">' . "
 	//<![CDATA[
 	var imgdescription = '" . rawurlencode($photoinfo['description']) . "';
-	var imgcaption = '" . $caption . "';
+	var imgcaption = '" . rawurlencode($caption) . "';
 	var imgexif = '" . rawurlencode($exiftable) . "';
 	//]]>
 	</script>";
@@ -477,6 +514,8 @@ if ($_GET['action'] == 'showphoto') {
 			$displaytxt = '&amp;showset=' . $_GET['showset'] . '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of photos from the (','flickpress') . $setinfo['title'] . __(') photoset.','flickpress');
 		} elseif ($_GET['returnto'] == 'tags') {
 			$displaytxt = '&amp;showtag=' . $_GET['showtag'] . '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of photos from the (','flickpress') . $_GET['showtag'] . __(') tag.','flickpress');
+		} elseif ($_GET['returnto'] == 'faves') {
+			$displaytxt = '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of favorite photos.','flickpress');
 		} else {
 			$displaytxt = '">' . __('Return to page ','flickpress') . $_GET['page'] . __(' of recent photos.','flickpress');
 		}

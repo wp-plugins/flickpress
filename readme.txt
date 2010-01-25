@@ -1,16 +1,16 @@
 === flickpress ===
 Contributors: isaacwedin
+Donate link: http://familypress.net/flickpress/
 Tags: images, photos, flickr
 Requires at least: 2.8
-Tested up to 2.9.1
-Stable tag: 1.4
+Tested up to: 2.9.1
+Stable tag: 1.5
 
-flickpress is a tool to insert Flickr photos into your posts, plus a widget to
-display recent Flickr photos.
+flickpress is a tool to find Flickr photos and insert them into your posts, plus a widget to display recent Flickr photos.
 
 == Description ==
 
-flickpress adds a button to the post editor to insert Flickr photos into WordPress posts. Add Flickr users by entering their usernames or email addresses. Previously-entered Flickr users are stored in a database table that can be managed at Tools:flickpress. Photos may be searched or browsed by recentness, tag, or photoset. Click through to a photo to insert a variety of sizes, adding the image's Flickr title as a caption if desired. In addition to browsing and searching specific users' photos, you may also search Flickr for Creative Commons, Flickr Commons, and government photos.
+flickpress adds a button to the post editor to find and insert Flickr photos into WordPress posts. Add Flickr users by entering their usernames or email addresses. Previously-entered Flickr users are stored in a database table that can be managed at Tools:flickpress. Search for users' photos by keyword or browse tags, photosets, favorites, or recent photos. You can also search for Creative Commons, Flickr Commons, and government photos. Click through to a photo to insert a variety of sizes, adding a variety of caption information if desired.
 
 == Installation ==
 
@@ -23,7 +23,8 @@ options if desired.
 == Template Function ==
 
 There is a simple template function available for use in your sidebar or other spots you'd like to include a few recent flickr photos. The function, its options, and the defaults are:
-`flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered'`
+
+`flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered');`
 
 == Widget ==
 
@@ -36,7 +37,16 @@ and text (such as HTML tags) to display before and after each image. Some tips:
 * For a vertical display, either use `<p>` before and `</p>` after or just a `<br />` after.
 * Most themes include a class called "centered" that will center your images in the sidebar.
 
+== Notes ==
+
+This plugin relys heavily on Dan Coulter's nice phpFlickr library ( <http://phpflickr.com/> ). I've found that using more than one plugin based on the library can cause conflicts, so I renamed the class in the library included with flickpress. If you're considering creating a plugin based on flickpress I highly recommend getting the latest official version of phpFlickr instead of using this modified version.
+
 == Changelog ==
+
+= 1.5 =
+* Renamed phpFlickr class and calls to eliminate plugin conflicts.
+* Added favorites.
+* Fixes error when inserting captions with funky characters.
 
 = 1.4 =
 * Added options to include photo description and EXIF info in photo captions.
@@ -63,3 +73,8 @@ and text (such as HTML tags) to display before and after each image. Some tips:
 * Added option to turn captions on or off by default.
 * Added jquery show/hide for license lists in the popup.
 * Fixed "next page" bug for commons search.
+
+== Upgrade Notice ==
+
+= 1.5 =
+* This version fixes a compatibility issue with other phpFlickr-based plugins, fixes a JavaScript error when inserting captions with funky characters, and adds favorites browsing.

@@ -1,5 +1,6 @@
 <?php
-/* phpFlickr Class 2.3.1
+/* Modified to avoid conflicts with other WordPress plugins (just renamed everything "phpFlickpress") */
+/* phpFlickpress Class 2.3.1
  * Written by Dan Coulter (dan@dancoulter.com)
  * Project Home Page: http://phpflickr.com/
  * Released under GNU Lesser General Public License (http://www.gnu.org/copyleft/lgpl.html)
@@ -41,7 +42,7 @@ ini_set('include_path', ini_get('include_path') . $path_delimiter . dirname(__FI
 
 // ini_set('include_path', dirname(__FILE__) . '/PEAR' . $path_delimiter . ini_get('include_path'));
 
-class phpFlickr {
+class phpFlickpress {
 	var $api_key;
 	var $secret;
 	var $REST = 'http://api.flickr.com/services/rest/';
@@ -73,7 +74,7 @@ class phpFlickr {
 	 */
 	var $max_cache_rows = 1000;
 
-	function phpFlickr ($api_key, $secret = NULL, $die_on_error = false) {
+	function phpFlickpress ($api_key, $secret = NULL, $die_on_error = false) {
 		//The API Key must be set before any calls can be made.  You can
 		//get your own at http://www.flickr.com/services/api/misc.api_keys.html
 		$this->api_key = $api_key;
@@ -199,8 +200,8 @@ class phpFlickr {
 		$args = array_merge(array("method" => $command, "format" => "php_serial", "api_key" => $this->api_key), $args);
 		if (!empty($this->token)) {
 			$args = array_merge($args, array("auth_token" => $this->token));
-		} elseif (!empty($_SESSION['phpFlickr_auth_token'])) {
-			$args = array_merge($args, array("auth_token" => $_SESSION['phpFlickr_auth_token']));
+		} elseif (!empty($_SESSION['phpFlickpress_auth_token'])) {
+			$args = array_merge($args, array("auth_token" => $_SESSION['phpFlickpress_auth_token']));
 		}
 		ksort($args);
 		$auth_sig = "";
@@ -266,7 +267,7 @@ class phpFlickr {
 	}
 
 	function setProxy ($server, $port) {
-		// Sets the proxy for all phpFlickr calls.
+		// Sets the proxy for all phpFlickpress calls.
 		$this->req->setProxy($server, $port);
 	}
 
@@ -336,8 +337,8 @@ class phpFlickr {
 		}
 		if (!empty($this->token)) {
 			$args = array_merge($args, array("auth_token" => $this->token));
-		} elseif (!empty($_SESSION['phpFlickr_auth_token'])) {
-			$args = array_merge($args, array("auth_token" => $_SESSION['phpFlickr_auth_token']));
+		} elseif (!empty($_SESSION['phpFlickpress_auth_token'])) {
+			$args = array_merge($args, array("auth_token" => $_SESSION['phpFlickpress_auth_token']));
 		}
 
 		ksort($args);
@@ -404,8 +405,8 @@ class phpFlickr {
 		}
 		if (!empty($this->token)) {
 			$args = array_merge($args, array("auth_token" => $this->token));
-		} elseif (!empty($_SESSION['phpFlickr_auth_token'])) {
-			$args = array_merge($args, array("auth_token" => $_SESSION['phpFlickr_auth_token']));
+		} elseif (!empty($_SESSION['phpFlickpress_auth_token'])) {
+			$args = array_merge($args, array("auth_token" => $_SESSION['phpFlickpress_auth_token']));
 		}
 
 		ksort($args);
@@ -473,8 +474,8 @@ class phpFlickr {
 		}
 		if (!empty($this->token)) {
 			$args = array_merge($args, array("auth_token" => $this->token));
-		} elseif (!empty($_SESSION['phpFlickr_auth_token'])) {
-			$args = array_merge($args, array("auth_token" => $_SESSION['phpFlickr_auth_token']));
+		} elseif (!empty($_SESSION['phpFlickpress_auth_token'])) {
+			$args = array_merge($args, array("auth_token" => $_SESSION['phpFlickpress_auth_token']));
 		}
 
 		ksort($args);
@@ -533,7 +534,7 @@ class phpFlickr {
 		// If remember_uri is set to false, the callback script (included) will
 		// redirect to its default page.
 
-		if (empty($_SESSION['phpFlickr_auth_token']) && empty($this->token)) {
+		if (empty($_SESSION['phpFlickpress_auth_token']) && empty($this->token)) {
 			if ($remember_uri) {
 				$redirect = $_SERVER['REQUEST_URI'];
 			}
@@ -549,7 +550,7 @@ class phpFlickr {
 			$this->die_on_error = false;
 			$rsp = $this->auth_checkToken();
 			if ($this->error_code !== false) {
-				unset($_SESSION['phpFlickr_auth_token']);
+				unset($_SESSION['phpFlickpress_auth_token']);
 				$this->auth($perms, $remember_uri);
 			}
 			$this->die_on_error = $tmp;
@@ -559,11 +560,11 @@ class phpFlickr {
 
 	/*******************************
 
-	To use the phpFlickr::call method, pass a string containing the API method you want
+	To use the phpFlickpress::call method, pass a string containing the API method you want
 	to use and an associative array of arguments.  For example:
 		$result = $f->call("flickr.photos.comments.getList", array("photo_id"=>'34952612'));
 	This method will allow you to make calls to arbitrary methods that haven't been
-	implemented in phpFlickr yet.
+	implemented in phpFlickpress yet.
 
 	*******************************/
 
@@ -616,8 +617,8 @@ class phpFlickr {
 	function auth_getToken ($frob) {
 		/* http://www.flickr.com/services/api/flickr.auth.getToken.html */
 		$this->request('flickr.auth.getToken', array('frob'=>$frob));
-		session_register('phpFlickr_auth_token');
-		$_SESSION['phpFlickr_auth_token'] = $this->parsed_response['auth']['token'];
+		session_register('phpFlickpress_auth_token');
+		$_SESSION['phpFlickpress_auth_token'] = $this->parsed_response['auth']['token'];
 		return $this->parsed_response ? $this->parsed_response['auth'] : false;
 	}
 
