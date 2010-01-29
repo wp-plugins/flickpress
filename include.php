@@ -2,25 +2,18 @@
 /* flickpress includes for use by both popup and the main plugin file */
 
 // get localized
-load_plugin_textdomain('flickpress');
+$plugin_dir = basename(dirname(__FILE__));
+load_plugin_textdomain( 'flickpress', 'wp-content/plugins/' . $plugin_dir, $plugin_dir );
 
 // get phpflickr stuff
 require_once( ABSPATH . 'wp-content/plugins/flickpress/phpflickr/phpFlickr.php');
 
-// fill the options array with the stored data if it's there
-$filez_options = array();
-if (get_option('flickpress_options')) {
-	$flickpress_options = get_option('flickpress_options');
-}
-
-// default capability is edit_posts
-if (empty($flickpress_options['capability'])) {
-	$flickpress_options['capability'] = 'edit_posts';
-}
-
 function flickpress_check_key ($key) {
-	$f = new phpFlickr($key);
-	$check = $f->test_echo();
+	global $table_prefix;
+	$flick = new phpFlickpress($key);
+	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+	$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+	$check = $flick->test_echo();
 	if ($check['stat'] == 'ok') {
 		return TRUE;
 	} else {
