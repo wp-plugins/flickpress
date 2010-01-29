@@ -79,7 +79,7 @@ jQuery(document).ready(function() {
 ';
 
 // display the user browser
-if ($_GET['action'] == 'users' || $_POST['action'] == 'useradd') {
+if ($_GET['action'] == 'users' || isset($_POST['useradd']) ) {
 	if (isset($_POST['useradd'])) {
 		if (strpos($_POST['email'],'@') === FALSE) {
 			$useradd_info = $flick->people_findByUsername($_POST['email']);
@@ -87,14 +87,18 @@ if ($_GET['action'] == 'users' || $_POST['action'] == 'useradd') {
 			$useradd_info = $flick->people_findByEmail($_POST['email']);
 		}
 		if ($useradd_info) {
-			$update_array = array('flickrid'=>$useradd_info['id'],'flickrname'=>$useradd_info['username']);
-			if (flickpress_update($update_array)) {
-				printf(__("<p class='fpupdated'>Added %s, you may now browse their photos.</p>\n","flickpress"),$useradd_info['username']);
+			if (flickpress_is_user($useradd_info['id'])) {
+				printf(__("<p class='fpupdated'>%s has already been added.</p>\n","flickpress"),$useradd_info['username']);
 			} else {
-				printf(__("<p class='fperror'>Failed to add %s, possibly due to a database error.</p>\n","flickpress"),$useradd_info['username']);
+				$update_array = array('flickrid'=>$useradd_info['id'],'flickrname'=>$useradd_info['username']);
+				if (flickpress_update($update_array)) {
+					printf(__("<p class='fpupdated'>Added %s, you may now browse their photos.</p>\n","flickpress"),$useradd_info['username']);
+				} else {
+					printf(__("<p class='fperror'>Failed to add %s, possibly due to a database error.</p>\n","flickpress"),$useradd_info['username']);
+				}
 			}
 		} else {
-				printf(__("<p class='fperror'>No Flickr user found linked to %s, check the email or username and try again.</p>\n","flickpress"),$_POST['email']);
+					printf(__("<p class='fperror'>No Flickr user found linked to %s, check the email or username and try again.</p>\n","flickpress"),$_POST['email']);
 		}
 	}
 	echo '<h3>' . __('Insert photos from a Flickr account','flickpress') . '</h3>
