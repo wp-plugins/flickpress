@@ -4,7 +4,7 @@ Plugin Name: flickpress widget
 Plugin URI: http://familypress.net/flickpress/
 Description: Adds a sidebar widget to dispay Flickr images.
 Author: Isaac Wedin
-Version: 1.5
+Version: 1.6
 Author URI: http://familypress.net/
 */
 

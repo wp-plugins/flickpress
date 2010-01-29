@@ -62,3 +62,18 @@ body {
 	display: none;
 	font-weight: bold;
 }
+
+.prevnext {
+	display: block;
+	text-align: center;
+	margin-top: 10px;
+	margin-bottom: 40px;
+}
+
+.usertable td {
+	padding: 5px;
+}
+
+.usertable {
+	margin-bottom: 15px;
+} 

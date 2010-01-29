@@ -4,7 +4,7 @@ Donate link: http://familypress.net/flickpress/
 Tags: images, photos, flickr
 Requires at least: 2.8
 Tested up to: 2.9.1
-Stable tag: 1.5
+Stable tag: 1.6
 
 flickpress is a tool to find Flickr photos and insert them into your posts, plus a widget to display recent Flickr photos.
 
@@ -17,14 +17,8 @@ flickpress adds a button to the post editor to find and insert Flickr photos int
 1. Extract the plugin archive in your `/wp-content/plugins/` directory, creating a 'flickpress' folder there.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 3. Enter your Flickr API key at Settings:flickpress and configure other
-options if desired.
-4. If you wish to use the caption function, your theme should include some caption-related style stuff - see the default theme for an example.
-
-== Template Function ==
-
-There is a simple template function available for use in your sidebar or other spots you'd like to include a few recent flickr photos. The function, its options, and the defaults are:
-
-`flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered');`
+options.
+4. If you wish to use the caption function, your theme should include some caption-related style stuff - which it probably does - but see the WordPress default theme for an example if not.
 
 == Widget ==
 
@@ -37,11 +31,25 @@ and text (such as HTML tags) to display before and after each image. Some tips:
 * For a vertical display, either use `<p>` before and `</p>` after or just a `<br />` after.
 * Most themes include a class called "centered" that will center your images in the sidebar.
 
+== Template Function ==
+
+There is a simple template function available for use in your sidebar or other spots you'd like to include a few recent flickr photos. The function, its options, and the defaults are:
+
+`flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered');`
+
 == Notes ==
 
-This plugin relys heavily on Dan Coulter's nice phpFlickr library ( <http://phpflickr.com/> ). I've found that using more than one plugin based on the library can cause conflicts, so I renamed the class in the library included with flickpress. If you're considering creating a plugin based on flickpress I highly recommend getting the latest official version of phpFlickr instead of using this modified version.
+This plugin relies heavily on Dan Coulter's nice phpFlickr library ( <http://phpflickr.com/> ). Using more than one plugin based on the library can cause conflicts, so I renamed the class in the library included with flickpress. If you're considering creating a plugin based on flickpress I highly recommend getting the latest official version of phpFlickr instead of using this modified version.
 
 == Changelog ==
+
+= 1.6 =
+* Added some error handling.
+* Made navigation headings more consistent.
+* Fixed warning for empty EXIF data, added reporting for empty EXIF and description.
+* Added interesting photo browsing.
+* Added older/newer links.
+* Markup cleanup, should now pass validation.
 
 = 1.5 =
 * Renamed phpFlickr class and calls to eliminate plugin conflicts.
@@ -75,6 +83,9 @@ This plugin relys heavily on Dan Coulter's nice phpFlickr library ( <http://phpf
 * Fixed "next page" bug for commons search.
 
 == Upgrade Notice ==
+
+= 1.6 =
+* This version adds some error handling, makes the navigation headings more consistent, fixes empty EXIF warning, adds interesting photo browsing, adds a bunch of older/newer links, fixes markup validation issues.
 
 = 1.5 =
 * This version fixes a compatibility issue with other phpFlickr-based plugins, fixes a JavaScript error when inserting captions with funky characters, and adds favorites browsing.
