@@ -18,17 +18,20 @@ $flick = new phpFlickpress($flickpress_options['apikey']);
 $fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
 $flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
 // test phpFlickr, die if not working
-$check = $flick->test_echo();
-if ($check['stat'] !== 'ok')
-	die (__('The Flickr API key you entered is not working, please verify it at Settings:flickpress and your Flickr account.','flickpress'));
+$check = $flick->photos_getRecent(NULL,1,1);
+if ($check['page'] !== 1)
+	die (__('Your Flickr API key seems to be invalid, please verify it is correct. This can also mean the Flickr API has changed, so if your key is correct check for a plugin update.','flickpress'));
 $per_page = 32;
+$version = get_bloginfo('version');
+$major_version = (int)substr($wp_version,0,1);
+if( $major_version > 2) { $csspath = 'css/'; }
 // print the header and the magical javascript
 echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <title>' . __('flickpress: insert Flickr photos','flickpress') . '</title>
 <link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/css/global.css" type="text/css" />
-<link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/wp-admin.css" type="text/css" />
+<link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/' . $csspath . 'wp-admin.css" type="text/css" />
 <link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/css/colors-fresh.css" type="text/css" />
 <link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.css" type="text/css" />
 <link rel="shortcut icon" href="' . get_bloginfo('wpurl') . '/wp-images/wp-favicon.png" />
@@ -79,7 +82,7 @@ jQuery(document).ready(function() {
 ';
 
 // display the user browser
-if ($_GET['action'] == 'users' || $_POST['action'] == 'useradd') {
+if ($_GET['action'] == 'users' || isset($_POST['useradd']) ) {
 	if (isset($_POST['useradd'])) {
 		if (strpos($_POST['email'],'@') === FALSE) {
 			$useradd_info = $flick->people_findByUsername($_POST['email']);
@@ -87,14 +90,18 @@ if ($_GET['action'] == 'users' || $_POST['action'] == 'useradd') {
 			$useradd_info = $flick->people_findByEmail($_POST['email']);
 		}
 		if ($useradd_info) {
-			$update_array = array('flickrid'=>$useradd_info['id'],'flickrname'=>$useradd_info['username']);
-			if (flickpress_update($update_array)) {
-				printf(__("<p class='fpupdated'>Added %s, you may now browse their photos.</p>\n","flickpress"),$useradd_info['username']);
+			if (flickpress_is_user($useradd_info['id'])) {
+				printf(__("<p class='fpupdated'>%s has already been added.</p>\n","flickpress"),$useradd_info['username']);
 			} else {
-				printf(__("<p class='fperror'>Failed to add %s, possibly due to a database error.</p>\n","flickpress"),$useradd_info['username']);
+				$update_array = array('flickrid'=>$useradd_info['id'],'flickrname'=>$useradd_info['username']);
+				if (flickpress_update($update_array)) {
+					printf(__("<p class='fpupdated'>Added %s, you may now browse their photos.</p>\n","flickpress"),$useradd_info['username']);
+				} else {
+					printf(__("<p class='fperror'>Failed to add %s, possibly due to a database error.</p>\n","flickpress"),$useradd_info['username']);
+				}
 			}
 		} else {
-				printf(__("<p class='fperror'>No Flickr user found linked to %s, check the email or username and try again.</p>\n","flickpress"),$_POST['email']);
+					printf(__("<p class='fperror'>No Flickr user found linked to %s, check the email or username and try again.</p>\n","flickpress"),$_POST['email']);
 		}
 	}
 	echo '<h3>' . __('Insert photos from a Flickr account','flickpress') . '</h3>
@@ -126,7 +133,7 @@ if ($_GET['action'] == 'users' || $_POST['action'] == 'useradd') {
 	$licenses = $flick->photos_licenses_getInfo();
 	echo '<form name="flickpress_adduser" method="post" action="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php">
         <input type="hidden" name="useradd" value="update" />
-        ' . __('Enter a Flickr username or email to add:','flickpress') . '<br /><input type="text" name="email" value="" size="15" /> <input type="submit" name="Submit" value="' . __('Look up Flickr user &raquo;','flickpress') . '" /></form>
+        ' . __('Enter a Flickr username or email to add:','flickpress') . '<br /><input type="text" name="email" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('Look up Flickr user &raquo;','flickpress') . '" class="button" /></form>
 	<h3>' . __('Search for CC-licensed, government, and Flickr Commons photos','flickpress') . '</h3>
 	<form name="flickpress_search" method="post" action="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php">
 	<p><a class="fptoggle" style="cursor:pointer">' . __('Choose licenses &raquo;','flickpress') . '</a></p>
@@ -140,7 +147,7 @@ if ($_GET['action'] == 'users' || $_POST['action'] == 'useradd') {
 	}
    echo '</ul>
 	</div>
-	<p><input type="text" name="searchtext" value="" size="15" /> <input type="submit" name="Submit" value="' . __('Find photos &raquo;','flickpress') . '" /></p></form>
+	<p><input type="text" name="searchtext" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('Find photos &raquo;','flickpress') . '" class="button" /></p></form>
 	<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=interesting">' . __('Browse interesting photos','flickpress') . '</a></h3>
 	</div>';
 echo '</body>
@@ -166,7 +173,7 @@ if ($_GET['action'] == 'options') {
 	<form name="flickpress_search" method="post" action="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php">
 	<input type="hidden" name="userid" value="' . $_GET['id'] . '" />
 	<input type="hidden" name="uname" value="' . $_GET['uname'] . '" />
-   <input type="text" name="searchtext" value="" size="15" /> <input type="submit" name="Submit" value="' . __('Find photos &raquo;','flickpress') . '" /></form>
+   <input type="text" name="searchtext" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('Find photos &raquo;','flickpress') . '" class="button" /></form>
         </div>
 </body>
 </html>';
@@ -437,7 +444,7 @@ if (isset($_POST['searchtext']) || isset($_GET['searchtext'])) {
    <input type="hidden" name="uname" value="' . $uname . '" />
 ';
 	}
-	echo '<input type="text" name="searchtext" value="" size="15" /> <input type="submit" name="Submit" value="' . __('New search &raquo;','flickpress') . '" /></form>
+	echo '<input type="text" name="searchtext" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('New search &raquo;','flickpress') . '" class="button" /></form>
 	</div>
 </body>
 </html>';
@@ -647,7 +654,7 @@ if ($_GET['action'] == 'showphoto') {
 		if (isset($plus_licenses)) {
 			$linkback = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($_GET['insearch']) . '&amp;page=' . $page . '&amp;licenses=' . $plus_licenses . '">';
 			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of photos from your search for &laquo;','flickpress') . $_GET['insearch'] . "&raquo;</a></p>\n";
-			$toplink = '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . __('Commons','flickpress') . ' : ' . __('search','flickpress') . ' : ' . $linkback . '&laquo;' . $_GET['insearch'] . '&raquo;</a> : ' . $caption . "</h3>\n";
+			$toplink = '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . __('Commons search','flickpress') . ' : ' . $linkback . '&laquo;' . $_GET['insearch'] . '&raquo;</a> : ' . $caption . "</h3>\n";
 		} else {
 			$linkback = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($_GET['insearch']) . '&amp;page=' . $page . '&amp;userid=' . $_GET['userid'] . '&amp;uname=' . $_GET['uname'] . '">';
 			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of photos from your search for &laquo;','flickpress') . $_GET['insearch'] . "&raquo;</a></p>\n";
