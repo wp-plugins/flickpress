@@ -13,8 +13,8 @@ function flickpress_check_key ($key) {
 	$flick = new phpFlickpress($key);
 	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
 	$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
-	$check = $flick->test_echo();
-	if ($check['stat'] == 'ok') {
+	$check = $flick->photos_getRecent(NULL,1,1);
+	if ($check['page'] == 1) {
 		return TRUE;
 	} else {
 		return FALSE;
@@ -32,6 +32,16 @@ function flickpress_getlist() {
         }
 }
 
+function flickpress_is_user($flickrid) {
+	global $wpdb, $flickpress_options, $table_prefix;
+	$table_name = $table_prefix . "flickpress";
+	if ($wpdb->get_var("SELECT flickrid FROM $table_name WHERE binary flickrid = '" . $flickrid . "'")) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
 // update the table
 function flickpress_update($update_array) {
 	global $wpdb, $flickpress_options, $table_prefix;
@@ -42,7 +52,7 @@ function flickpress_update($update_array) {
         if ($wpdb->get_var("SELECT flickrid FROM $table_name WHERE binary flickrid = '" . $update_array['flickrid'] . "'")) {
                 return $wpdb->query("UPDATE $table_name SET 
                         flickrid = '" . $update_array['flickrid'] . "', 
-                        flickrname = '" . $update_array['flickrname'] . "',
+                        flickrname = '" . $update_array['flickrname'] . "'
                         WHERE binary flickrid = '" . $update_array['flickrid'] . "'");
         } else {
                 return $wpdb->query("INSERT INTO $table_name SET 
