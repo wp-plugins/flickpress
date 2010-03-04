@@ -2,9 +2,9 @@
 Contributors: isaacwedin
 Donate link: http://familypress.net/flickpress/
 Tags: images, photos, flickr
-Requires at least: 2.8
-Tested up to: 2.9.1
-Stable tag: 1.6.1
+Requires at least: 2.9
+Tested up to: 2.9.2
+Stable tag: 1.7
 
 flickpress is a tool to find Flickr photos and insert them into your posts, plus a widget to display recent Flickr photos.
 
@@ -42,6 +42,11 @@ There is a simple template function available for use in your sidebar or other s
 This plugin relies heavily on Dan Coulter's nice phpFlickr library ( <http://phpflickr.com/> ). Using more than one plugin based on the library can cause conflicts, so I renamed the class in the library included with flickpress. If you're considering creating a plugin based on flickpress I highly recommend getting the latest official version of phpFlickr instead of using this modified version.
 
 == Changelog ==
+
+= 1.7 =
+* Fix for Flickr API change.
+* Fixed extra Home link for commons search image page.
+* Fixed popup style for WP 3.0.
 
 = 1.6.1 =
 * Fixed add user bug, added error handling.
@@ -86,6 +91,9 @@ This plugin relies heavily on Dan Coulter's nice phpFlickr library ( <http://php
 * Fixed "next page" bug for commons search.
 
 == Upgrade Notice ==
+
+= 1.7 =
+* Fix for Flickr API change, fixed extra Home link for commons search image page, fixed popup style for WP 3.0.
 
 = 1.6.1 =
 * Fixes a bug in 1.6 where users couldn't be added.

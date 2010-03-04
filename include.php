@@ -13,8 +13,8 @@ function flickpress_check_key ($key) {
 	$flick = new phpFlickpress($key);
 	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
 	$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
-	$check = $flick->test_echo();
-	if ($check['stat'] == 'ok') {
+	$check = $flick->photos_getRecent(NULL,1,1);
+	if ($check['page'] == 1) {
 		return TRUE;
 	} else {
 		return FALSE;
