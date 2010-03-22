@@ -2,8 +2,8 @@
 /*
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
-Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Last tested and working with WordPress 2.9.1. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 1.7.1
+Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
+Version: 1.8
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
@@ -175,7 +175,7 @@ function flickpress_management() {
 		  echo '
 		  <div class="wrap">
 		  <h2>' . __('flickpress manager','flickpress') . '</h2>
-		  <p>' . __('You can manually manage flickpress users here. You should probably only delete users...you can also add users but that is much easier to do from the popup tool because you can look up users by email address there.','flickpress') . '</p>
+		  <p>' . __('You can manually manage flickpress users here. It is possible to add users here but that is much easier to do from the popup tool because you can look up users by email address there.','flickpress') . '</p>
 		  <form name="flickpress" method="post">
 		  <p class="submit"><input type="submit" name="Submit" value="' . __('Update','flickpress') . ' &raquo;" /></p>
 		  <input type="hidden" name="flickpress_update" value="update" />
@@ -247,8 +247,15 @@ function flickpress_delete($id) {
 		  }
 }
 
-// run the table installer when the plugin is activated
+function flickpress_uninstall() {
+	global $wpdb;
+	$cache_table = $wpdb->prefix . 'flickpress_cache';
+	$wpdb->query("DROP TABLE IF EXISTS $cache_table");
+}
+
+// activation and deactivation hooks
 register_activation_hook( __FILE__, 'flickpress_table_install');
+register_deactivation_hook( __FILE__, 'flickpress_uninstall');
 
 // a simple template function to display photos in a sidebar or somesuch
 function flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered') {

@@ -13,25 +13,26 @@ if (!current_user_can($flickpress_options['usecap']))
 if (empty($flickpress_options['apikey']))
 	die (__('No Flickr API key found, please enter one at Settings:flickpress.','flickpress'));
 // start up phpFlickr...or now phpFlickrpress
-$flick = new phpFlickpress($flickpress_options['apikey']);
+$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
 // enable the cache
-$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
-$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+$flickpresscon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+$flickpresscachetable = $table_prefix . 'flickpress_cache';
+$phpflickpress->enableCache('db', $flickpresscon , 600, $flickpresscachetable);
 // test phpFlickr, die if not working
-$check = $flick->photos_getRecent(NULL,1,1);
-if ($check['page'] !== 1)
+$flickpresscheck = $phpflickpress->photos_getRecent(NULL,1,1);
+if ($flickpresscheck['page'] !== 1)
 	die (__('Your Flickr API key seems to be invalid, please verify it is correct. This can also mean the Flickr API has changed, so if your key is correct check for a plugin update.','flickpress'));
-$per_page = 32;
-$version = get_bloginfo('version');
-$major_version = (int)substr($wp_version,0,1);
-if( $major_version > 2) { $csspath = 'css/'; }
+$flickpress_per_page = 32;
+$flickpress_wp_version = get_bloginfo('version');
+$flickpress_major_version = (int)substr($flickpress_wp_version,0,1);
+if( $flickpress_major_version > 2) { $flickpress_csspath = 'css/'; }
 // print the header and the magical javascript
 echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <title>' . __('flickpress: insert Flickr photos','flickpress') . '</title>
 <link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/css/global.css" type="text/css" />
-<link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/' . $csspath . 'wp-admin.css" type="text/css" />
+<link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/' . $flickpress_csspath . 'wp-admin.css" type="text/css" />
 <link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/css/colors-fresh.css" type="text/css" />
 <link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.css" type="text/css" />
 <link rel="shortcut icon" href="' . get_bloginfo('wpurl') . '/wp-images/wp-favicon.png" />
@@ -85,9 +86,9 @@ jQuery(document).ready(function() {
 if ($_GET['action'] == 'users' || isset($_POST['useradd']) ) {
 	if (isset($_POST['useradd'])) {
 		if (strpos($_POST['email'],'@') === FALSE) {
-			$useradd_info = $flick->people_findByUsername($_POST['email']);
+			$useradd_info = $phpflickpress->people_findByUsername($_POST['email']);
 		} else {
-			$useradd_info = $flick->people_findByEmail($_POST['email']);
+			$useradd_info = $phpflickpress->people_findByEmail($_POST['email']);
 		}
 		if ($useradd_info) {
 			if (flickpress_is_user($useradd_info['id'])) {
@@ -130,7 +131,7 @@ if ($_GET['action'] == 'users' || isset($_POST['useradd']) ) {
 		}
 		echo "</tbody></table>\n";
 	}
-	$licenses = $flick->photos_licenses_getInfo();
+	$licenses = $phpflickpress->photos_licenses_getInfo();
 	echo '<form name="flickpress_adduser" method="post" action="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php">
         <input type="hidden" name="useradd" value="update" />
         ' . __('Enter a Flickr username or email to add:','flickpress') . '<br /><input type="text" name="email" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('Look up Flickr user &raquo;','flickpress') . '" class="button" /></form>
@@ -182,47 +183,31 @@ die();
 
 // Display a user's recent photos
 if ($_GET['action'] == 'recent') {
-	if (isset($_GET['page'])) {
+	if ($_GET['page'] > 0) {
 		$page = $_GET['page'];
 	} else {
-		$page = 1;
+		$page = '1';
 	}
-	if ($user_info = $flick->people_getInfo($_GET['id'])) {
+	if ($user_info = $phpflickpress->people_getInfo($_GET['id'])) {
 		$photos_url = $user_info['photosurl'];
 	echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users" class="current">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=recent&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . __('recent','flickpress') . "</a></h3>\n";
 		echo "\n<p>\n";
-		if ($photos = $flick->people_getPublicPhotos($_GET['id'],NULL,NULL,$per_page,$page)) {
+		if ($photos = $phpflickpress->people_getPublicPhotos($_GET['id'],NULL,NULL,$flickpress_per_page,$page)) {
 			$num_photos = $photos['photos']['total'];
 			if ($num_photos > 0) {
-				$pages = ceil($num_photos/$per_page);
-				if ($pages > 1) {
-					echo "<div class='prevnext'>";
-					if ((int)$page > 1) {
-						echo '<div class="alignleft"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=recent&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . ($page - 1) . '">' . __('&laquo; Newer','flickpress') . "</a></div>";
-					}
-					if ((int)$pages !== (int)$page) {
-						echo '<div class="alignright"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=recent&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . ($page + 1) . '">' . __('Older &raquo;','flickpress') . "</a></div>";
-					}
-					echo "</div>\n";
-				}
+				$pages = ceil($num_photos/$flickpress_per_page);
 				foreach ((array)$photos['photos']['photo'] as $photo) {
-					$photourl = $flick->buildPhotoURL($photo, 'Square');
+					$photourl = $phpflickpress->buildPhotoURL($photo, 'Square');
 					$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
 					echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=showphoto&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;photoid=' . $photo['id'] . '&amp;returnto=recent&amp;page=' . $page . '">' . $imgcode . '</a> ';
 					unset($photourl,$imgcode,$flickrcode);
 				}
-				echo "</p>\n";
 				if ($pages > 1) {
-					echo "<p>\n";
-					for ($i=1;$i<=$pages;$i++) {
-						if ($i == $page) {
-							echo $i . " \n";
-						} else {
-							echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=recent&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $i . '">' . $i . "</a> \n";
-						}
-					}
-					echo "\n</p>\n";
+					$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=recent&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=';
+					$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $pages,'current' => $page)) . "</div>\n";
+					echo $page_nav_html;
 				}
+				echo "</p>\n";
 			} else {
 				echo '<p>' . __('This user has no public photos.','flickpress') . "</p>\n";
 			}
@@ -244,42 +229,28 @@ die();
 
 // Display recent interesting photos
 if ($_GET['action'] == 'interesting') {
-	if (isset($_GET['page'])) {
+	if ($_GET['page'] > 0) {
 		$page = $_GET['page'];
 	} else {
 		$page = 1;
 	}
-	if ($photos = $flick->interestingness_getList(NULL,NULL,$per_page,$page)) {
+	if ($photos = $phpflickpress->interestingness_getList(NULL,NULL,$flickpress_per_page,$page)) {
 		echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users" class="current">' . __('Home','flickpress') . '</a> : '  . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=interesting&amp;page=' . $page . '">' . __('Interesting','flickpress') . "</a></h3>\n";
 		echo "\n<p>\n";
 		$num_photos = $photos['total'];
-		$pages = ceil($num_photos/$per_page);
-		if ($pages > 1) {
-			echo "<div class='prevnext'>";
-			if ((int)$page > 1) {
-				echo '<div class="alignleft"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=interesting&amp;page=' . ($page - 1) . '">' . __('&laquo; Newer','flickpress') . "</a></div>";
-			}
-			if ((int)$pages !== (int)$page) {
-				echo '<div class="alignright"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=interesting&amp;page=' . ($page + 1) . '">' . __('Older &raquo;','flickpress') . "</a></div>";
-			}
-			echo "</div>\n";
-		}
+		$pages = ceil($num_photos/$flickpress_per_page);
 		foreach ((array)$photos['photo'] as $photo) {
-			$photourl = $flick->buildPhotoURL($photo, 'Square');
+			$photourl = $phpflickpress->buildPhotoURL($photo, 'Square');
 			$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
 			echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=showphoto&amp;photoid=' . $photo['id'] . '&amp;returnto=interesting&amp;page=' . $page . '">' . $imgcode . '</a> ';
 			unset($photourl,$imgcode,$flickrcode);
 		}
-		echo "</p>\n";
-		echo "<p>\n";
-		for ($i=1;$i<=$pages;$i++) {
-			if ($i == $page) {
-				echo $i . " \n";
-			} else {
-				echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=interesting&amp;page=' . $i . '">' . $i . "</a> \n";
-			}
+		if ($pages > 1) {
+			$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=interesting&amp;page=';
+			$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $pages,'current' => $page)) . "</div>\n";
+			echo $page_nav_html;
 		}
-		echo "\n</p>\n";
+		echo "</p>\n";
 	} else {
 		echo '<p>' . __('Failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
 		print_r($photos);
@@ -293,47 +264,31 @@ die();
 
 // Display a user's favorite photos
 if ($_GET['action'] == 'faves') {
-	if (isset($_GET['page'])) {
+	if ($_GET['page'] > 0) {
 		$page = $_GET['page'];
 	} else {
 		$page = 1;
 	}
-	$user_info = $flick->people_getInfo($_GET['id']);
+	$user_info = $phpflickpress->people_getInfo($_GET['id']);
 	$photos_url = $user_info['photosurl'];
 	echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=faves&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . __('favorites','flickpress') . "</a></h3>\n";
 	echo "<p>\n";
-	if ($photos = $flick->favorites_getPublicList($_GET['id'],NULL,NULL,NULL,$per_page,$page)) {
+	if ($photos = $phpflickpress->favorites_getPublicList($_GET['id'],NULL,NULL,NULL,$flickpress_per_page,$page)) {
 		$num_photos = $photos['photos']['total'];
-		$pages = ceil($num_photos/$per_page);
+		$pages = ceil($num_photos/$flickpress_per_page);
 		if ($num_photos > 0) {
-			if ($pages > 1) {
-				echo "<div class='prevnext'>";
-				if ((int)$page > 1) {
-					echo '<div class="alignleft"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=faves&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . ($page - 1) . '">' . __('&laquo; Newer','flickpress') . "</a></div>";
-				}
-				if ((int)$pages !== (int)$page) {
-					echo '<div class="alignright"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=faves&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . ($page + 1) . '">' . __('Older &raquo;','flickpress') . "</a></div>";
-				}
-				echo "</div>\n";
-			}
 			foreach ((array)$photos['photos']['photo'] as $photo) {
-				$photourl = $flick->buildPhotoURL($photo, 'Square');
+				$photourl = $phpflickpress->buildPhotoURL($photo, 'Square');
 				$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
 				echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=showphoto&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;photoid=' . $photo['id'] . '&amp;returnto=faves&amp;page=' . $page . '">' . $imgcode . '</a> ';
 				unset($photourl,$imgcode,$flickrcode);
 			}
-			echo "</p>\n";
 			if ($pages > 1) {
-				echo "<p>\n";
-				for ($i=1;$i<=$pages;$i++) {
-					if ($i == $page) {
-						echo $i . " \n";
-					} else {
-						echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=faves&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $i . '">' . $i . "</a> \n";
-					}
-				}
-				echo "</p>\n";
+				$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=faves&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=';
+				$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $pages,'current' => $page)) . "</div>\n";
+				echo $page_nav_html;
 			}
+			echo "</p>\n";
 		} else {
 			echo '<p>' . __('This user has no favorites.','flickpress') . "</p>\n";
 		}
@@ -371,20 +326,20 @@ if (isset($_POST['searchtext']) || isset($_GET['searchtext'])) {
 			die(__('Search failed: missing userid or licensetype.'));
 		}
 	}
-	if (isset($_GET['page'])) {
+	if ($_GET['page'] > 0) {
 		$page = $_GET['page'];
    } else {
-		$page = 1;
+		$page = '1';
 	}
 	if (isset($s_licenses)) {
-		$licenses = $flick->photos_licenses_getInfo();
+		$licenses = $phpflickpress->photos_licenses_getInfo();
 		$comma_licenses = implode(',',$s_licenses);
 		$plus_licenses = implode('+',$s_licenses);
-		$searcharray = array('text' => $searchtext,'license' => $comma_licenses,'page' => $page,'per_page' => $per_page);
+		$searcharray = array('text' => $searchtext,'license' => $comma_licenses,'page' => $page,'per_page' => $flickpress_per_page);
 	} elseif (isset($userid)) {
-		$searcharray = array('text' => $searchtext,'user_id' => $userid,'page' => $page,'per_page' => $per_page);
+		$searcharray = array('text' => $searchtext,'user_id' => $userid,'page' => $page,'per_page' => $flickpress_per_page);
 	}
-	$photos = $flick->photos_search($searcharray);
+	$photos = $phpflickpress->photos_search($searcharray);
 	if (isset($s_licenses)) {
 		$addthis = 'licenses=' . $plus_licenses;
 	} else {
@@ -395,16 +350,6 @@ if (isset($_POST['searchtext']) || isset($_GET['searchtext'])) {
 	} else {
 		echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=options&amp;type=user&amp;id=' . $userid . '&amp;uname=' . urlencode($uname) . '">' . $uname . '</a> : ' . __('search','flickpress') . ' : &laquo;' . $searchtext . "&raquo;</h3>\n";
 	}
-	if (((int)$photos['total'] > 0) && ((int)$photos['pages'] > 1)) {
-		echo "<div class='prevnext'>";
-		if ((int)$page > 1) {
-			echo '<div class="alignleft"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($searchtext) . '&amp;page=' . ($page - 1) . '&amp;' . $addthis . '">' . __('&laquo; Newer','flickpress') . "</a></div>";
-		}
-		if ((int)$photos['pages'] !== (int)$page) {
-			echo '<div class="alignright"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($searchtext) . '&amp;page=' . ($page + 1) . '&amp;' . $addthis . '">' . __('Older &raquo;','flickpress') . "</a></div>";
-		}
-		echo "</div>\n";
-	}
 	echo "\n<p>";
 	if (isset($s_licenses)) {
 		$addthis = 'licenses=' . $plus_licenses; 
@@ -413,10 +358,15 @@ if (isset($_POST['searchtext']) || isset($_GET['searchtext'])) {
 	}
 	if ($photos['total'] > 0) {
 		foreach ((array)$photos['photo'] as $photo) {
-			$photourl = $flick->buildPhotoURL($photo, 'Square');
+			$photourl = $phpflickpress->buildPhotoURL($photo, 'Square');
 			$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
 			echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=showphoto&amp;photoid=' . $photo['id'] . '&amp;page=' . $page . '&amp;insearch=' . urlencode($searchtext) . '&amp;' .$addthis . '">' . $imgcode . '</a> ';
 			unset($photourl,$imgcode);
+		}
+		if ($photos['pages'] > 1) {
+			$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($searchtext) . '&amp;' . $addthis . '&amp;page=';
+			$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $photos['pages'],'current' => $page)) . "</div>\n";
+			echo $page_nav_html;
 		}
 	} else {
 		echo '<strong>' . __('None found!','flickpress') . '</strong>';
@@ -453,45 +403,29 @@ die();
 
 // display a user's photosets
 if ($_GET['action'] == 'sets') {
-	$photos_url = $flick->urls_getUserPhotos($_GET['id']);
+	$photos_url = $phpflickpress->urls_getUserPhotos($_GET['id']);
 	$setslink = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=sets&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . __('photosets','flickpress') . '</a>';
 	if (isset($_GET['showset'])) {
-		if (isset($_GET['page'])) {
+		if ($_GET['page'] > 0) {
 			$page = $_GET['page'];
 		} else {
 			$page = 1;
 		}
-		if (($setphotos = $flick->photosets_getPhotos($photoset_id = $_GET['showset'], $extras = NULL, $privacy_filter = NULL, $per_page = $per_page, $page = $page)) && ($setinfo = $flick->photosets_getInfo($photoset_id = $_GET['showset']))) {
+		if (($setphotos = $phpflickpress->photosets_getPhotos($photoset_id = $_GET['showset'], $extras = NULL, $privacy_filter = NULL, $per_page = $flickpress_per_page, $page = $page)) && ($setinfo = $phpflickpress->photosets_getInfo($photoset_id = $_GET['showset']))) {
 			echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . $setslink . ' : ' . htmlentities($setinfo['title']) . "</h3>\n";
-			if ((int)$setphotos['photoset']['pages'] > 1) {
-				echo "<div class='prevnext'>";
-				if ((int)$page > 1) {
-					echo '<div class="alignleft"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=sets&amp;showset=' . $_GET['showset'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . ($page - 1) . '">' . __('&laquo; Newer','flickpress') . "</a></div>";
-				}
-				if ((int)$setphotos['photoset']['pages'] !== (int)$page) {
-					echo '<div class="alignright"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=sets&amp;showset=' . $_GET['showset'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . ($page + 1) . '">' . __('Older &raquo;','flickpress') . "</a></div>";
-				}
-				echo "</div>\n";
-			}
 			echo '<p>';
 			foreach ((array)$setphotos['photoset']['photo'] as $photo) {
-				$photourl = $flick->buildPhotoURL($photo, "Square");
+				$photourl = $phpflickpress->buildPhotoURL($photo, "Square");
 				$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
 				echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=showphoto&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;photoid=' . $photo['id'] . '&amp;returnto=sets&amp;showset=' . $_GET['showset'] . '&amp;page=' . $page . '">' . $imgcode . '</a> ';
 				unset($photourl,$imgcode,$flickrcode);
 			}
-			if ($setphotos['photoset']['pages'] > 1) {
-				echo "<p>\n";
-				for ($i=1;$i<=$setphotos['photoset']['pages'];$i++) {
-					if ($i == $page) {
-						echo $i . " \n";
-					} else {
-						echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=sets&amp;showset=' . $_GET['showset'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $i . '">' . $i . "</a> \n";
-					}
-				}
-				echo "</p>\n";
-			}
 			echo "</p>\n";
+			if ($setphotos['photoset']['pages'] > 1) {
+				$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=sets&amp;showset=' . $_GET['showset'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=';
+				$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $setphotos['photoset']['pages'],'current' => $page)) . "</div>\n";
+				echo $page_nav_html;
+			}
 		} else {
 			echo '<p>' . __('Failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
 			print_r($setphotos);
@@ -499,7 +433,7 @@ if ($_GET['action'] == 'sets') {
 		}
 	} else {
 		echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . $userlink . __(' : photosets','flickpress'). "</h3>\n";
-		if ($photosets = $flick->photosets_getList($_GET['id'])) {
+		if ($photosets = $phpflickpress->photosets_getList($_GET['id'])) {
 			echo "\n<ul>\n";
 			foreach ((array)$photosets['photoset'] as $photoset) {
 				echo '<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=sets&amp;showset=' . $photoset['id'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . htmlentities($photoset['title']) . ' (' . $photoset['photos'] . ')</a></strong></li>';
@@ -519,52 +453,32 @@ die();
 
 // display a user's tags or the photos for one of the tags
 if ($_GET['action'] == 'tags') {
-	$photos_url = $flick->urls_getUserPhotos($_GET['id']);
+	$photos_url = $phpflickpress->urls_getUserPhotos($_GET['id']);
 	$tagslink = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=tags&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . __('tags','flickpress') . '</a>';
 	// show the photos for a tag
 	if (isset($_GET['showtag'])) {
-	echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . $tagslink . ' : ' . $_GET['showtag'] . "</h3>\n";
-		if (isset($_GET['page'])) {
+	echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . $tagslink . ' : ' . $_GET['showtag'] . "</h3>\n";
+		if ($_GET['page'] > 0) {
 			$page = $_GET['page'];
 		} else {
 			$page = 1;
 		}
-		if ($tagphotos = $flick->photos_search(array("user_id" => $_GET['id'], "tags" => $_GET['showtag'], "per_page" => $per_page, "page" => $page))) {
+		if ($tagphotos = $phpflickpress->photos_search(array("user_id" => $_GET['id'], "tags" => $_GET['showtag'], "per_page" => $flickpress_per_page, "page" => $page))) {
 			$num_photos = $tagphotos['total'];
-			$pages = ceil($num_photos/$per_page);
-			if ((int)$pages > 1) {
-				echo "<div class='prevnext'>";
-				if ((int)$pages > 1 && $page > 1) {
-					echo '<div class="alignleft"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=tags&amp;showtag=' . $_GET['showtag'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . ($page - 1) . '">' . __('&laquo; Newer','flickpress') . "</a></div>";
-				}
-				if ((int)$pages !== (int)$page) {
-					echo '<div class="alignright"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=tags&amp;showtag=' . $_GET['showtag'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . ($page + 1) . '">' . __('Older &raquo;','flickpress') . "</a></div>";
-				}
-				echo "</div>\n";
-			}
+			$pages = ceil($num_photos/$flickpress_per_page);
 			echo "<p>";
 			foreach ((array)$tagphotos['photo'] as $tagphoto) {
-				$photourl = $flick->buildPhotoURL($tagphoto, "Square");
+				$photourl = $phpflickpress->buildPhotoURL($tagphoto, "Square");
 				$imgcode = '<img alt="' . htmlentities($tagphoto['title']) . '" src="' . $photourl . '" width="75" height="75" />';
 				echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=showphoto&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;photoid=' . $tagphoto['id'] . '&amp;returnto=tags&amp;showtag=' . $_GET['showtag'] . '&amp;page=' . $page . '">' . $imgcode . '</a> ';
 				unset($photourl,$imgcode,$flickrcode);
 			}
-			echo "</p>\n";
 			if ($pages > 1) {
-				for ($i=1;$i<=$pages;$i++) {
-					if ($i == 1) {
-						echo '<p>';
-					}
-					if ($i == $page) {
-						echo $i . ' ';
-					} else {
-						echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=tags&amp;showtag=' . $_GET['showtag'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $i . '">' . $i . "</a> ";
-					}
-					if ($i == $pages) {
-						echo "</p>\n";
-					}
-				}
+				$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=tags&amp;showtag=' . $_GET['showtag'] . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=';
+				$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $pages,'current' => $page)) . "</div>\n";
+				echo $page_nav_html;
 			}
+			echo "</p>\n";
 		} else {
 			echo '<p>' . __('Failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
 			print_r($tagphotos);
@@ -573,7 +487,7 @@ if ($_GET['action'] == 'tags') {
 	// list the user's tags
 	} else {
 		echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . __('tags','flickpress') . "</h3>\n";
-		if ($tags = $flick->tags_getListUser($_GET['id'])) {
+		if ($tags = $phpflickpress->tags_getListUser($_GET['id'])) {
         	echo "\n<ul>\n";
         foreach ((array)$tags as $tag) {
 				echo '<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=tags&amp;showtag=' . $tag . '&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '">' . htmlentities($tag) . '</a></strong></li>';
@@ -593,7 +507,7 @@ die();
 
 // Display photo info and insert stuff
 if ($_GET['action'] == 'showphoto') {
-	if (isset($_GET['page'])) {
+	if ($_GET['page'] > 0) {
 		$page = $_GET['page'];
 	} else {
 		$page = 1;
@@ -601,8 +515,8 @@ if ($_GET['action'] == 'showphoto') {
 	if (isset($_GET['licenses'])) {
 		$plus_licenses = str_replace(' ','+',$_GET['licenses']);
 	}
-	$photoinfo = $flick->photos_getInfo($_GET['photoid'],NULL);
-	if ($photoexif = $flick->photos_getExif($_GET['photoid'],NULL)) {
+	$photoinfo = $phpflickpress->photos_getInfo($_GET['photoid'],NULL);
+	if ($photoexif = $phpflickpress->photos_getExif($_GET['photoid'],NULL)) {
 		foreach ((array)$photoexif['exif'] as $e) {
 			if (empty($fpexif[$e['label']])) {
 				$fpexif[$e['label']] = (empty($e['clean']) ? $e['raw'] : $e['clean']);
@@ -641,8 +555,8 @@ if ($_GET['action'] == 'showphoto') {
 	} else {
 		$title = __('(untitled)','flickpress');
 	}
-	$sizes = $flick->photos_getSizes($_GET['photoid']);
-	$caption = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $title . '</a> ' . __('by','flickpress') . ' <a href="' . $flick->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>';
+	$sizes = $phpflickpress->photos_getSizes($_GET['photoid']);
+	$caption = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $title . '</a> ' . __('by','flickpress') . ' <a href="' . $phpflickpress->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>';
 	echo '<script type="text/javascript">' . "
 	//<![CDATA[
 	var imgdescription = '" . rawurlencode($description) . "';
@@ -665,7 +579,7 @@ if ($_GET['action'] == 'showphoto') {
 		$begtoplink = '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=options&amp;type=user&amp;id=' . $_GET['userid'] . '&amp;uname=' . urlencode($_GET['uname']) . '">' . $_GET['uname'] . '</a> : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;page=' . $page;
 		$endtoplink = '</a> : ' . $title . "</h3>\n";
 		if ($_GET['returnto'] == 'sets') {
-			$setinfo = $flick->photosets_getInfo($_GET['showset']);
+			$setinfo = $phpflickpress->photosets_getInfo($_GET['showset']);
 			$linkback = $beglinkback . '&amp;showset=' . $_GET['showset'] . '">';
 			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of photos from the (','flickpress') . $setinfo['title'] . __(') photoset.','flickpress') . "</a></p>\n";
 			$toplink = $begtoplink . '&amp;action=sets">' . __('photosets','flickpress') . '</a> : ' . $linkback . $setinfo['title'] . $endtoplink;
@@ -683,7 +597,7 @@ if ($_GET['action'] == 'showphoto') {
 			$toplink = '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users">' . __('Home','flickpress') . '</a> : ' . $linkback . __('Interesting','flickpress') . $endtoplink;
 		} elseif($_GET['returnto'] == 'recent') {
 			$linkback = $beglinkback . '">';
-			$context = $flick->photos_getContext($_GET['photoid'],NULL);
+			$context = $phpflickpress->photos_getContext($_GET['photoid'],NULL);
 			if ($context['nextphoto']['id'] !== 0)
 				$prevnext = '<div class="alignleft"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=showphoto&amp;type=user&amp;id=' . $_GET['id'] . '&amp;uname=' . $_GET['uname'] . '&amp;photoid=' . $context['nextphoto']['id'] . '&amp;returnto=recent&amp;page=' . $page . '">' . __('&laquo; Newer','flickpress') . '</a></div>';
 			if ($context['prevphoto']['id'] !== 0)
@@ -710,7 +624,7 @@ if ($_GET['action'] == 'showphoto') {
 	echo '<p><strong>' . __('Description:','flickpress') . '</strong><br />';
 	echo $description . "</p>\n";
 	echo '<p><strong>' . __('EXIF:','flickpress') . '</strong></p>' . $exiftable . "\n";
-	$licenses = $flick->photos_licenses_getInfo();
+	$licenses = $phpflickpress->photos_licenses_getInfo();
 	echo '<p><strong>' . __('License:','flickpress') . '</strong><br />';
 	foreach ($licenses as $license) {
 		if ($license['id'] == $photoinfo['license']) {
