@@ -76,4 +76,29 @@ body {
 
 .usertable {
 	margin-bottom: 15px;
-} 
+}
+
+a.page-numbers {
+   border: 1px solid #ccc;
+   padding: 5px;
+   border-radius: 5px;
+   background-color: #eee;
+	text-decoration: none;
+}
+
+.prevnext .current {
+   border: 1px solid #ddd;
+   background-color: #ddd;
+   padding: 5px;
+   border-radius: 5px;
+   color: #666;
+}
+
+a.page-numbers:hover {
+   border: 1px solid #d54e21;
+   padding: 5px;
+   color: #d54e21;
+   border-radius: 5px;
+	text-decoration: none;
+}
+
