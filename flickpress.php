@@ -3,7 +3,7 @@
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
 Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 1.8
+Version: 1.8.1
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
@@ -57,7 +57,7 @@ function flickpress_popup_javascript() {
 <script type="text/javascript">
 //<![CDATA[
 function edflickpress() {
-   tb_show("' . __('flickpress: insert Flickr photos','flickpress') . '","' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?action=users&amp;TB_iframe=true",false);
+   tb_show("' . __('flickpress: insert Flickr photos','flickpress') . '","' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users&amp;TB_iframe=true",false);
 }
 //]]>
 </script>
