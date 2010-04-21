@@ -65,6 +65,8 @@ function flickpress_popup_header() {
 	$flickpress_options = get_option('flickpress_options');
 	if (empty($flickpress_options['insclass']))
 		$flickpress_options['insclass'] = 'alignnone';
+	if (empty($flickpress_options['captions']))
+		$flickpress_options['captions'] = 'yes';
 	$flickpress_wp_version = get_bloginfo('version');
 	$flickpress_major_version = (int)substr($flickpress_wp_version,0,1);
 	if( $flickpress_major_version > 2)
@@ -84,18 +86,27 @@ function flickpress_popup_header() {
 //<![CDATA[
 window.focus();
 var winder = window.top;
-function insertcode(linkcode,docaption,dodesc,doexif,divwidth) {
+function insertcode(imgsrc,docaption,dodesc,doexif,divwidth,imgwidth,imgheight) {
+	var captype = "' . $flickpress_options['captype'] . '";
 	if (docaption == "1") {
-		var linkcode = "<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\">" + linkcode + "<p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
+		if (captype == "default") {
+			var linkcode = "<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\"><a href=\"" + unescape(imgurl) + "\"><img src=\"" + unescape(imgsrc) + "\" title=\"" + unescape(imgtitle) + "\" alt=\"" + unescape(imgtitle) + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a><p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
+		} else {
+			var linkcode = "<a href=\"" + unescape(imgurl) + "\"><img src=\"" + unescape(imgsrc) + "\" title=\"" + unescape(imgtitle) + "\" alt=\"" + unescape(imgtitle) + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a><p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
+		}
 		if (dodesc == "1") {
 			var linkcode = linkcode + "<p class=\"wp-caption flickr-desc\">" + unescape(imgdescription) + "</p>";
 		}
 		if (doexif == "1") {
 			var linkcode = linkcode + unescape(imgexif);
 		}
-		var linkcode = linkcode + "</div>\n";
+		if (captype == "default") {
+			var linkcode = linkcode + "</div>\n";
+		} else {
+			var linkcode = linkcode + "\n";
+		}
 	} else {
-		var linkcode = linkcode + "\n";
+		var linkcode = "<a href=\"" + unescape(imgurl) + "\"><img src=\"" + unescape(imgsrc) + "\" title=\"" + unescape(imgtitle) + "\" alt=\"" + unescape(imgtitle) + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a>\n";
 	}
    if ( typeof winder.tinyMCE !== "undefined" && ( winder.ed = winder.tinyMCE.activeEditor ) && !winder.ed.isHidden() ) {
       winder.ed.focus();
@@ -126,8 +137,17 @@ jQuery(document).ready(function() {
 }
 
 function flickpress_popup_main() {
-	global $table_prefix;
+	global $table_prefix,$wpdb;
 	$flickpress_options = get_option('flickpress_options');
+	if ($_GET['fpaction'] == 'delcache') {
+		$wpdb->query('TRUNCATE TABLE ' . $table_prefix . 'flickpress_cache;');
+		$rowcount = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->flickpress_cache;");
+		if ($rowcount < 1) {
+			_e("<p class='fpupdated'>Cleared the cache.</p>\n","flickpress");
+		} else {
+			_e("<p class='fpupdated'>Failed to clear the cache.</p>\n","flickpress");
+		}
+	}
 	$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
 	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
 	$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
@@ -196,6 +216,7 @@ function flickpress_popup_main() {
 	</div>
 	<p><input type="text" name="searchtext" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('Find photos &raquo;','flickpress') . '" class="button" /></p></form>
 	<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=interesting">' . __('Browse interesting photos','flickpress') . '</a></h3>
+	<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=delcache">' . __('Clear cache','flickpress') . '</a></h3>
 	</div>
 </body>
 </html>';
@@ -640,14 +661,18 @@ function flickpress_popup_showphoto() {
    }
 	if (!empty($photoinfo['title'])) {
 		$title = $photoinfo['title'];
+	} elseif (!empty($flickpress_options['untitled'])) {
+		$title = $flickpress_options['untitled'];
 	} else {
-		$title = __('(untitled)','flickpress');
+		$title = '(untitled)';
 	}
 	$sizes = $phpflickpress->photos_getSizes($_GET['photoid']);
 	$caption = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $title . '</a> ' . __('by','flickpress') . ' <a href="' . $phpflickpress->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>';
 	echo '<script type="text/javascript">' . "
 	//<![CDATA[
-	var imgdescription = '" . rawurlencode($description) . "';
+	var imgurl = '" . rawurlencode($photoinfo['urls']['url']['0']['_content']) . "';
+	var imgtitle = '" . rawurlencode($title) . "';
+	var imgdescription = '" . rawurlencode($photoinfo['description']) . "';
 	var imgcaption = '" . rawurlencode($caption) . "';
 	var imgexif = '" . rawurlencode($exiftable) . "';
 	//]]>
@@ -697,9 +722,10 @@ function flickpress_popup_showphoto() {
 	echo $toplink;
 	foreach ($sizes as $size) {
 		$fcodes[$size['label']] = '<img alt="' . $title . '" src="' . $size['source'] . '" title="' . $title . '" width="' . $size['width'] . '" height="' . $size['height'] . '" />';
-		$flinked[$size['label']] = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $fcodes[$size['label']] . '</a>';
+		$capflinked[$size['label']] = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $fcodes[$size['label']] . '</a>';
+		$flinked[$size['label']] = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . '<img alt="' . $title . '" src="' . $size['source'] . '" title="' . $title . '" width="' . $size['width'] . '" height="' . $size['height'] . '" class="' . $flickpress_options['insclass'] . '" />' . '</a>';
 		$divwidth = $size['width'] + 10;
-		$finserts[$size['label']] = '<strong><a class="fpinserting" href="#" onclick="insertcode(\'' . js_escape($flinked[$size['label']]) . '\',document.getElementById (\'add_caption\').checked,document.getElementById (\'add_desc\').checked,document.getElementById (\'add_exif\').checked,' . $divwidth . '); return false;">' . $size['label'] . "</a></strong> (" . $size['width'] . 'x' . $size['height'] . ")<br />\n";
+		$finserts[$size['label']] = '<strong><a class="fpinserting" href="#" onclick="insertcode(\'' . js_escape($size['source']) . '\',document.getElementById (\'add_caption\').checked,document.getElementById (\'add_desc\').checked,document.getElementById (\'add_exif\').checked,' . $divwidth . ',' . $size['width'] . ',' . $size['height'] . '); return false;">' . $size['label'] . "</a></strong> (" . $size['width'] . 'x' . $size['height'] . ")<br />\n";
 	}
 	if (isset($fcodes['Small'])) {
 		$popcode = $fcodes['Small'];
@@ -723,16 +749,16 @@ function flickpress_popup_showphoto() {
 			}
 		}
 	}
-	if (empty($flickpress_options['captions']) || ($flickpress_options['captions'] == 'yes')) {
-		$fpchecked = ' checked="checked"';
-	} else {
+	if ($flickpress_options['captions'] == 'no') {
 		$fpchecked = '';
+	} else {
+		$fpchecked = ' checked="checked"';
 	}
 	echo '</p></div>
 	<div id="flickright">
-	<p><input name="add_caption" id="add_caption" value="1" type="checkbox"' . $fpchecked . ' /> <label for="add_caption">' . __('Caption the inserted image with the photo title and owner (to comply with licenses that require attribution).','flickpress') . '</label></p>';
-	echo '<p><input name="add_desc" id="add_desc" value="1" type="checkbox" /> <label for="add_desc">' . __('Add the description too.','flickpress') . '</label></p>';
-	echo '<p><input name="add_exif" id="add_exif" value="1" type="checkbox" /> <label for="add_exif">' . __('Add a table of EXIF info too.','flickpress') . '</label></p>
+	<p><input name="add_caption" id="add_caption" value="1" type="checkbox"' . $fpchecked . ' /> <label for="add_caption">' . __('Caption the inserted image with the photo title and owner (e.g., to comply with licenses that require attribution).','flickpress') . '</label></p>
+	<p><input name="add_desc" id="add_desc" value="1" type="checkbox" /> <label for="add_desc">' . __('Add the photo description.','flickpress') . '</label></p>
+	<p><input name="add_exif" id="add_exif" value="1" type="checkbox" /> <label for="add_exif">' . __('Add a table of EXIF information.','flickpress') . '</label></p>
 	<p>' . __('<strong>Click a size to add it to your post:</strong>','flickpress') . '</p>
 	<p>';
 	foreach ($finserts as $finsert) {

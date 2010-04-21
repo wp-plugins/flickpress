@@ -17,7 +17,7 @@ $flickpress_per_page = 32;
 flickpress_popup_header();
 
 // display the main page
-if ($_GET['fpaction'] == 'users' || isset($_POST['fpuseradd']) ) {
+if ($_GET['fpaction'] == 'users' || isset($_POST['fpuseradd']) || $_GET['fpaction'] == 'delcache') {
 	flickpress_popup_main();
 }
 

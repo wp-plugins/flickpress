@@ -43,6 +43,10 @@ This plugin relies heavily on Dan Coulter's nice phpFlickr library ( <http://php
 
 == Changelog ==
 
+= 1.9 =
+* Added some caption customization options.
+* Moved widget into main plugin.
+
 = 1.8.1 =
 * More conflict insulation in the popup tool.
 * Tag list now starts with popular, with option to list all.
