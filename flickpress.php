@@ -76,9 +76,10 @@ function flickpress_sanitize($input) {
 	$input['captions'] = wp_filter_nohtml_kses($input['captions']);
 	$input['captype'] = wp_filter_nohtml_kses($input['captype']);
 	$input['caporder'] = wp_filter_nohtml_kses($input['caporder']);
-	$input['before'] = htmlentities(str_replace('"',"'",$input['before']),ENT_QUOTES);
-	$input['between'] = htmlentities(str_replace('"',"'",$input['between']),ENT_QUOTES);
-	$input['after'] = htmlentities(str_replace('"',"'",$input['after']),ENT_QUOTES);
+	$input['before'] = wp_filter_nohtml_kses($input['before']);
+	$input['between'] = wp_filter_nohtml_kses($input['between']);
+	$input['after'] = wp_filter_nohtml_kses($input['after']);
+	$input['thickbox'] = wp_filter_nohtml_kses($input['thickbox']);
 	return $input;
 }
 
@@ -96,6 +97,10 @@ function flickpress_options_subpanel() {
 ';
 	settings_fields('flickpressoptions_options');
 	$flickpress_options = get_option('flickpress_options');
+	if (empty($flickpress_options['between']))
+		$flickpress_options['between'] = ' by ';
+	if (empty($flickpress_options['caporder']))
+		$flickpress_options['caporder'] = 'titleauthor';
 	if (empty($flickpress_options['untitled']))
 		$flickpress_options['untitled'] = '(untitled)';
 	if (empty($flickpress_options['usecap']))
@@ -155,7 +160,7 @@ function flickpress_options_subpanel() {
 	echo __('<strong>Default</strong> produces normal WordPress captions. <strong>Simple</strong> places the caption text below the image without a surrounding div, useful if you wish to move the caption to the bottom of your post.','flickpress') . '</td>
       </tr>
       <tr>
-         <th scope="row">' . __('Caption order:','flickpress') . "</th>\n<td>";
+         <th scope="row">' . __('Caption layout:','flickpress') . "</th>\n<td>";
    if (empty($flickpress_options['caporder']) || ($flickpress_options['caporder'] == 'titleauthor')) {
       echo '<label><input name="flickpress_options[caporder]" type="radio" value="titleauthor" size="5" checked="checked"> ' . __('Title then author','flickpress') . '</label><br />';
       echo '<label><input name="flickpress_options[caporder]" type="radio" value="authortitle" size="5"> ' . __('Author then title','flickpress') . '</label><br />';
@@ -179,6 +184,17 @@ function flickpress_options_subpanel() {
          <th scope="row">' . __('After caption text:','flickpress') . '</th>
          <td><input name="flickpress_options[after]" type="text" value="' . $flickpress_options['after'] . '" size="20"><br />
       ' . __('Text placed after the caption.','flickpress') . '</td>
+      </tr>
+      <tr>
+         <th scope="row">' . __('Use ThickBox:','flickpress') . "</th>\n<td>";
+   if ($flickpress_options['thickbox'] == 'yes') {
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="yes" size="5" checked="checked"> ' . __('On','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="no" size="5"> ' . __('Off','flickpress') . '</label><br />';
+   } else {
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="yes" size="5"> ' . __('On','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="no" size="5" checked="checked"> ' . __('Off','flickpress') . '</label><br />';
+   }
+   echo __('Enable ThickBox display for inserted images.','flickpress') . '</td>
       </tr>
 		</tbody>
 	</table> 
@@ -431,5 +447,22 @@ function widget_fpwidg_init() {
 
 // Run our code later in case this loads prior to any required plugins.
 add_action('widgets_init', 'widget_fpwidg_init');
+
+// Add the thickbox stuff if the option is set
+function flickpress_scripts() {
+	$flickpress_options = get_option('flickpress_options');
+	if ($flickpress_options['thickbox'] == 'yes')
+		wp_enqueue_script('thickbox');
+}
+
+add_action('wp_print_scripts','flickpress_scripts');
+
+function flickpress_load_tb_fix() {
+	$flickpress_options = get_option('flickpress_options');
+	if ($flickpress_options['thickbox'] == 'yes')
+		echo "\n" . '<script type="text/javascript">tb_pathToImage = "' . get_option('siteurl') . '/wp-includes/js/thickbox/loadingAnimation.gif";tb_closeImage = "' . get_option('siteurl') . '/wp-includes/js/thickbox/tb-close.png";</script>'. "\n";
+}
+
+add_action('wp_footer', 'flickpress_load_tb_fix');
 
 ?>

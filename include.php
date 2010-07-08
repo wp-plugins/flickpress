@@ -67,6 +67,11 @@ function flickpress_popup_header() {
 		$flickpress_options['insclass'] = 'alignnone';
 	if (empty($flickpress_options['captions']))
 		$flickpress_options['captions'] = 'yes';
+	if ($flickpress_options['thickbox'] == 'yes') {
+		$imagelinkvar = 'var imglink = "<a href=\"" + unescape(tbimg) + "\" title=\"" + imgtitleenc + "\" class=\"thickbox\">";';
+	} else {
+		$imagelinkvar = 'var imglink = "<a href=\"" + unescape(imgurl) + "\">";';
+	}
 	$flickpress_wp_version = get_bloginfo('version');
 	$flickpress_major_version = (int)substr($flickpress_wp_version,0,1);
 	if( $flickpress_major_version > 2)
@@ -88,11 +93,12 @@ window.focus();
 var winder = window.top;
 function insertcode(imgsrc,docaption,dodesc,doexif,divwidth,imgwidth,imgheight) {
 	var captype = "' . $flickpress_options['captype'] . '";
+	' . $imagelinkvar . '
 	if (docaption == "1") {
 		if (captype == "default") {
-			var linkcode = "<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\"><a href=\"" + unescape(imgurl) + "\"><img src=\"" + unescape(imgsrc) + "\" title=\"" + unescape(imgtitle) + "\" alt=\"" + unescape(imgtitle) + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a><p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
+			var linkcode = "<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\">" + imglink + "<img src=\"" + unescape(imgsrc) + "\" title=\"" + imgtitleenc + "\" alt=\"" + imgtitleenc + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a><p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
 		} else {
-			var linkcode = "<a href=\"" + unescape(imgurl) + "\"><img src=\"" + unescape(imgsrc) + "\" title=\"" + unescape(imgtitle) + "\" alt=\"" + unescape(imgtitle) + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a><p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
+			var linkcode = imglink + "<img src=\"" + unescape(imgsrc) + "\" title=\"" + imgtitleenc + "\" alt=\"" + imgtitleenc + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a><p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
 		}
 		if (dodesc == "1") {
 			var linkcode = linkcode + "<p class=\"wp-caption flickr-desc\">" + unescape(imgdescription) + "</p>";
@@ -106,7 +112,7 @@ function insertcode(imgsrc,docaption,dodesc,doexif,divwidth,imgwidth,imgheight) 
 			var linkcode = linkcode + "\n";
 		}
 	} else {
-		var linkcode = "<a href=\"" + unescape(imgurl) + "\"><img src=\"" + unescape(imgsrc) + "\" title=\"" + unescape(imgtitle) + "\" alt=\"" + unescape(imgtitle) + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a>\n";
+		var linkcode = imglink + "<img src=\"" + unescape(imgsrc) + "\" title=\"" + imgtitleenc + "\" alt=\"" + imgtitleenc + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a>\n";
 	}
    if ( typeof winder.tinyMCE !== "undefined" && ( winder.ed = winder.tinyMCE.activeEditor ) && !winder.ed.isHidden() ) {
       winder.ed.focus();
@@ -667,11 +673,22 @@ function flickpress_popup_showphoto() {
 		$title = '(untitled)';
 	}
 	$sizes = $phpflickpress->photos_getSizes($_GET['photoid']);
-	$caption = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $title . '</a> ' . __('by','flickpress') . ' <a href="' . $phpflickpress->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>';
+	if ($flickpress_options['caporder'] == 'titleauthor') {
+		$caption = $flickpress_options['before'] . '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $title . '</a>' . $flickpress_options['between'] . '<a href="' . $phpflickpress->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>' . $flickpress_options['after'];
+	} else {
+		$caption = $flickpress_options['before'] . '<a href="' . $phpflickpress->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>' . $flickpress_options['between'] . '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $title . '</a>' . $flickpress_options['after'];
+	}
+	foreach ($sizes as $size) {
+		if ($size['label'] == 'Original')
+			break;
+		$tbimg = $size['source'];
+	}
 	echo '<script type="text/javascript">' . "
 	//<![CDATA[
 	var imgurl = '" . rawurlencode($photoinfo['urls']['url']['0']['_content']) . "';
+	var tbimg = '" . rawurlencode($tbimg) . "';
 	var imgtitle = '" . rawurlencode($title) . "';
+	var imgtitleenc = '" . htmlentities($title, ENT_QUOTES) . "';
 	var imgdescription = '" . rawurlencode($photoinfo['description']) . "';
 	var imgcaption = '" . rawurlencode($caption) . "';
 	var imgexif = '" . rawurlencode($exiftable) . "';

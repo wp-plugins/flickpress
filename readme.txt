@@ -35,7 +35,7 @@ and text (such as HTML tags) to display before and after each image. Some tips:
 
 There is a simple template function available for use in your sidebar or other spots you'd like to include a few recent flickr photos. The function, its options, and the defaults are:
 
-`flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered');`
+`if (function_exists('flickpress_photos')) flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered');`
 
 == Notes ==
 
@@ -46,6 +46,8 @@ This plugin relies heavily on Dan Coulter's nice phpFlickr library ( <http://php
 = 1.9 =
 * Added some caption customization options.
 * Moved widget into main plugin.
+* Added ThickBox support.
+* Updated phpFlickr library.
 
 = 1.8.1 =
 * More conflict insulation in the popup tool.
@@ -108,6 +110,9 @@ This plugin relies heavily on Dan Coulter's nice phpFlickr library ( <http://php
 * Fixed "next page" bug for commons search.
 
 == Upgrade Notice ==
+
+= 1.9 =
+* Added caption customization, ThickBox support, updated phpFlickr, moved widget into main plugin.
 
 = 1.8.1 =
 * More conflict insulation, tag list now starts with popular.
