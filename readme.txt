@@ -3,8 +3,8 @@ Contributors: isaacwedin
 Donate link: http://familypress.net/flickpress/
 Tags: images, photos, flickr
 Requires at least: 2.9
-Tested up to: 2.9.2
-Stable tag: 1.8.1
+Tested up to: 3.0
+Stable tag: 1.9
 
 flickpress is a tool to find Flickr photos and insert them into your posts, plus a widget to display recent Flickr photos.
 
