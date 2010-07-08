@@ -13,8 +13,8 @@ function flickpress_check_key ($key) {
 	$flick = new phpFlickpress($key);
 	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
 	$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
-	$check = $flick->test_echo();
-	if ($check['stat'] == 'ok') {
+	$check = $flick->photos_getRecent(NULL,1,1);
+	if ($check['page'] == 1) {
 		return TRUE;
 	} else {
 		return FALSE;
@@ -32,6 +32,16 @@ function flickpress_getlist() {
         }
 }
 
+function flickpress_is_user($flickrid) {
+	global $wpdb, $flickpress_options, $table_prefix;
+	$table_name = $table_prefix . "flickpress";
+	if ($wpdb->get_var("SELECT flickrid FROM $table_name WHERE binary flickrid = '" . $flickrid . "'")) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
 // update the table
 function flickpress_update($update_array) {
 	global $wpdb, $flickpress_options, $table_prefix;
@@ -42,13 +52,741 @@ function flickpress_update($update_array) {
         if ($wpdb->get_var("SELECT flickrid FROM $table_name WHERE binary flickrid = '" . $update_array['flickrid'] . "'")) {
                 return $wpdb->query("UPDATE $table_name SET 
                         flickrid = '" . $update_array['flickrid'] . "', 
-                        flickrname = '" . $update_array['flickrname'] . "',
+                        flickrname = '" . $update_array['flickrname'] . "'
                         WHERE binary flickrid = '" . $update_array['flickrid'] . "'");
         } else {
                 return $wpdb->query("INSERT INTO $table_name SET 
                         flickrid = '" . $update_array['flickrid'] . "',
                         flickrname = '" . $update_array['flickrname'] . "'");
         }
+}
+
+function flickpress_popup_header() {
+	$flickpress_options = get_option('flickpress_options');
+	if (empty($flickpress_options['insclass']))
+		$flickpress_options['insclass'] = 'alignnone';
+	if (empty($flickpress_options['captions']))
+		$flickpress_options['captions'] = 'yes';
+	if ($flickpress_options['thickbox'] == 'yes') {
+		$imagelinkvar = 'var imglink = "<a href=\"" + unescape(tbimg) + "\" title=\"" + imgtitleenc + "\" class=\"thickbox\">";';
+	} else {
+		$imagelinkvar = 'var imglink = "<a href=\"" + unescape(imgurl) + "\">";';
+	}
+	$flickpress_wp_version = get_bloginfo('version');
+	$flickpress_major_version = (int)substr($flickpress_wp_version,0,1);
+	if( $flickpress_major_version > 2)
+		$flickpress_csspath = 'css/';
+	echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>' . __('flickpress: insert Flickr photos','flickpress') . '</title>
+<link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/css/global.css" type="text/css" />
+<link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/' . $flickpress_csspath . 'wp-admin.css" type="text/css" />
+<link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-admin/css/colors-fresh.css" type="text/css" />
+<link rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.css" type="text/css" />
+<link rel="shortcut icon" href="' . get_bloginfo('wpurl') . '/wp-images/wp-favicon.png" />
+<meta http-equiv="Content-Type" content="text/html; charset=' . get_settings('blog_charset') . '" />
+<script type="text/javascript" src="' . get_bloginfo('wpurl') . '/wp-includes/js/jquery/jquery.js"></script>
+<script type="text/javascript">
+//<![CDATA[
+window.focus();
+var winder = window.top;
+function insertcode(imgsrc,docaption,dodesc,doexif,divwidth,imgwidth,imgheight) {
+	var captype = "' . $flickpress_options['captype'] . '";
+	' . $imagelinkvar . '
+	if (docaption == "1") {
+		if (captype == "default") {
+			var linkcode = "<div class=\"wp-caption ' . $flickpress_options['insclass'] . '\" style=\"width: " + divwidth + "px\;\">" + imglink + "<img src=\"" + unescape(imgsrc) + "\" title=\"" + imgtitleenc + "\" alt=\"" + imgtitleenc + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a><p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
+		} else {
+			var linkcode = imglink + "<img src=\"" + unescape(imgsrc) + "\" title=\"" + imgtitleenc + "\" alt=\"" + imgtitleenc + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a><p class=\"wp-caption-text\">" + unescape(imgcaption) + "</p>";
+		}
+		if (dodesc == "1") {
+			var linkcode = linkcode + "<p class=\"wp-caption flickr-desc\">" + unescape(imgdescription) + "</p>";
+		}
+		if (doexif == "1") {
+			var linkcode = linkcode + unescape(imgexif);
+		}
+		if (captype == "default") {
+			var linkcode = linkcode + "</div>\n";
+		} else {
+			var linkcode = linkcode + "\n";
+		}
+	} else {
+		var linkcode = imglink + "<img src=\"" + unescape(imgsrc) + "\" title=\"" + imgtitleenc + "\" alt=\"" + imgtitleenc + "\" width=\"" + imgwidth + "\" height=\"" + imgheight + "\" \></a>\n";
+	}
+   if ( typeof winder.tinyMCE !== "undefined" && ( winder.ed = winder.tinyMCE.activeEditor ) && !winder.ed.isHidden() ) {
+      winder.ed.focus();
+      if (winder.tinymce.isIE)
+         winder.ed.selection.moveToBookmark(winder.tinymce.EditorManager.activeEditor.windowManager.bookmark);
+      winder.ed.execCommand("mceInsertContent", false, linkcode);
+   } else {
+      winder.edInsertContent(winder.edCanvas, linkcode);
+   }
+   return;
+}
+jQuery(document).ready(function() {
+	jQuery("span.fpinserted").hide();
+	jQuery("a.fpinserting").click(function(){
+		jQuery("span.fpinserted").show();
+	});
+   jQuery("div.fpshowhide").hide();
+   jQuery("a.fptoggle").click(function(){
+      jQuery("div.fpshowhide").toggle();
+   });
+});
+//]]>
+</script>
+</head>
+<body>
+<div class="wrap">
+';
+}
+
+function flickpress_popup_main() {
+	global $table_prefix,$wpdb;
+	$flickpress_options = get_option('flickpress_options');
+	if ($_GET['fpaction'] == 'delcache') {
+		$wpdb->query('TRUNCATE TABLE ' . $table_prefix . 'flickpress_cache;');
+		$rowcount = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->flickpress_cache;");
+		if ($rowcount < 1) {
+			_e("<p class='fpupdated'>Cleared the cache.</p>\n","flickpress");
+		} else {
+			_e("<p class='fpupdated'>Failed to clear the cache.</p>\n","flickpress");
+		}
+	}
+	$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+	$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+	if (isset($_POST['fpuseradd'])) {
+		if (strpos($_POST['email'],'@') === FALSE) {
+			$fpuseradd_info = $phpflickpress->people_findByUsername($_POST['email']);
+		} else {
+			$fpuseradd_info = $phpflickpress->people_findByEmail($_POST['email']);
+		}
+		if ($fpuseradd_info) {
+			if (flickpress_is_user($fpuseradd_info['id'])) {
+				printf(__("<p class='fpupdated'>%s has already been added.</p>\n","flickpress"),$fpuseradd_info['username']);
+			} else {
+				$fpupdate_array = array('flickrid'=>$fpuseradd_info['id'],'flickrname'=>$fpuseradd_info['username']);
+				if (flickpress_update($fpupdate_array)) {
+					printf(__("<p class='fpupdated'>Added %s, you may now browse their photos.</p>\n","flickpress"),$fpuseradd_info['username']);
+				} else {
+					printf(__("<p class='fperror'>Failed to add %s, possibly due to a database error.</p>\n","flickpress"),$fpuseradd_info['username']);
+				}
+			}
+		} else {
+					printf(__("<p class='fperror'>No Flickr user found linked to %s, check the email or username and try again.</p>\n","flickpress"),$_POST['email']);
+		}
+	}
+	echo '<h3>' . __('Insert photos from a Flickr account','flickpress') . '</h3>
+	<p>' . __('Click one of the usernames to browse their photos:','flickpress') . '</p>
+';
+	if ($flickpress_stored = flickpress_getlist()) {
+		echo "<table class='usertable'><tbody>\n";
+		$fpcol = 1;
+		foreach ((array)$flickpress_stored as $flickr_user) {
+			if ($fpcol == 1) {
+				echo '<tr>';
+			}
+			echo '<td><a class="usernames" href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=options&amp;fptype=user&amp;fpid=' . $flickr_user['flickrid'] . '&amp;fpuname=' . urlencode($flickr_user['flickrname']) . '">' . $flickr_user['flickrname'] . "</a></td>";
+			if ($fpcol == 3) {
+				echo '</tr>';
+				$fpcol = 1;
+			} else {
+				$fpcol++;
+			}
+		}
+		if ($fpcol == 2) {
+			echo "<td></td><td></td></tr>";
+		} elseif ($fpcol == 3) {
+			echo "<td></td></tr>";
+		}
+		echo "</tbody></table>\n";
+	}
+	$fplicenses = $phpflickpress->photos_licenses_getInfo();
+	echo '<form name="flickpress_adduser" method="post" action="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php">
+        <input type="hidden" name="fpuseradd" value="update" />
+        ' . __('Enter a Flickr username or email to add:','flickpress') . '<br /><input type="text" name="email" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('Look up Flickr user &raquo;','flickpress') . '" class="button" /></form>
+	<h3>' . __('Search for CC-licensed, government, and Flickr Commons photos','flickpress') . '</h3>
+	<form name="flickpress_search" method="post" action="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php">
+	<p><a class="fptoggle" style="cursor:pointer">' . __('Choose licenses &raquo;','flickpress') . '</a></p>
+	<div class="fpshowhide">
+	<p>' . __('Please be sure that your use is compatible with the photo license.','flickpress') . '</p>
+	<ul>';
+	foreach ($fplicenses as $fplicense) {
+		if ($fplicense['id'] !== '0') {
+			echo '<li><input name="licensetype[]" value="' . $fplicense['id'] . '" type="checkbox" checked="checked" /> <a href="' . $fplicense['url'] . '">' . $fplicense['name'] . "</a></li>\n";
+		}
+	}
+	echo '</ul>
+	</div>
+	<p><input type="text" name="searchtext" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('Find photos &raquo;','flickpress') . '" class="button" /></p></form>
+	<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=interesting">' . __('Browse interesting photos','flickpress') . '</a></h3>
+	<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=delcache">' . __('Clear cache','flickpress') . '</a></h3>
+	</div>
+</body>
+</html>';
+	die();
+}
+
+function flickpress_popup_user_options() {
+	$userlink = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=options&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . urlencode($_GET['fpuname']) . '">' . $_GET['fpuname'] . '</a>';
+	echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users" class="current">' . __('Home','flickpress') . '</a> : ' . $userlink . '</h3>
+	<p><strong>Browse:</strong></p>
+	<ul>
+	<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=sets&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . __('photosets','flickpress') . ' &raquo;</a></strong></li>
+	<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=tags&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;fpshowtags=popular">' . __('tags','flickpress') . ' &raquo;</a></strong></li>
+	<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=recent&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . __('recent','flickpress') . ' &raquo;</a></strong></li>
+	<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=faves&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . __('favorites','flickpress') . ' &raquo;</a></strong></li>
+	</ul>
+	<p><strong>Search:</strong></p>
+	<form name="flickpress_search" method="post" action="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php">
+	<input type="hidden" name="fpid" value="' . $_GET['fpid'] . '" />
+	<input type="hidden" name="fpuname" value="' . $_GET['fpuname'] . '" />
+   <input type="text" name="searchtext" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('Find photos &raquo;','flickpress') . '" class="button" /></form>
+        </div>
+</body>
+</html>';
+	die();
+}
+
+function flickpress_popup_recent() {
+	global $flickpress_per_page, $table_prefix;
+	$flickpress_options = get_option('flickpress_options');
+	$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+	$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+	$userlink = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=options&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . urlencode($_GET['fpuname']) . '">' . $_GET['fpuname'] . '</a>';
+	if ($_GET['page'] > 0) {
+		$page = $_GET['page'];
+	} else {
+		$page = '1';
+	}
+	if ($user_info = $phpflickpress->people_getInfo($_GET['fpid'])) {
+		$photos_url = $user_info['photosurl'];
+	echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users" class="current">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=recent&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . __('recent','flickpress') . "</a></h3>\n";
+		echo "\n<p>\n";
+		if ($photos = $phpflickpress->people_getPublicPhotos($_GET['fpid'],NULL,NULL,$flickpress_per_page,$page)) {
+			$num_photos = $photos['photos']['total'];
+			if ($num_photos > 0) {
+				$pages = ceil($num_photos/$flickpress_per_page);
+				foreach ((array)$photos['photos']['photo'] as $photo) {
+					$photourl = $phpflickpress->buildPhotoURL($photo, 'Square');
+					$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
+					echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=showphoto&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;photoid=' . $photo['id'] . '&amp;returnto=recent&amp;page=' . $page . '">' . $imgcode . '</a> ';
+					unset($photourl,$imgcode,$flickrcode);
+				}
+				if ($pages > 1) {
+					$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=recent&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;page=';
+					$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $pages,'current' => $page)) . "</div>\n";
+					echo $page_nav_html;
+				}
+				echo "</p>\n";
+			} else {
+				echo '<p>' . __('This user has no public photos.','flickpress') . "</p>\n";
+			}
+		} else {
+			echo '<p>' . __('An error occurred.','flickpress') . "<br />\n<pre>\n";
+			print_r($photos);
+			echo "\n</pre>\n</p>";
+		}
+	} else {
+			echo '<p>' . __('An error occurred.','flickpress') . "<br />\n<pre>\n";
+			print_r($photos);
+			echo "\n</pre>\n</p>\n";
+	}
+	echo '</div>
+</body>
+</html>';
+	die();
+}
+
+function flickpress_popup_interesting() {
+	global $flickpress_per_page, $table_prefix;
+	$flickpress_options = get_option('flickpress_options');
+	$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+	$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+	if ($_GET['page'] > 0) {
+		$page = $_GET['page'];
+	} else {
+		$page = 1;
+	}
+	if ($photos = $phpflickpress->interestingness_getList(NULL,NULL,$flickpress_per_page,$page)) {
+		echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users" class="current">' . __('Home','flickpress') . '</a> : '  . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=interesting&amp;page=' . $page . '">' . __('Interesting','flickpress') . "</a></h3>\n";
+		echo "\n<p>\n";
+		$num_photos = $photos['total'];
+		$pages = ceil($num_photos/$flickpress_per_page);
+		foreach ((array)$photos['photo'] as $photo) {
+			$photourl = $phpflickpress->buildPhotoURL($photo, 'Square');
+			$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
+			echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=showphoto&amp;photoid=' . $photo['id'] . '&amp;returnto=interesting&amp;page=' . $page . '">' . $imgcode . '</a> ';
+			unset($photourl,$imgcode,$flickrcode);
+		}
+		if ($pages > 1) {
+			$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=interesting&amp;page=';
+			$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $pages,'current' => $page)) . "</div>\n";
+			echo $page_nav_html;
+		}
+		echo "</p>\n";
+	} else {
+		echo '<p>' . __('Failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
+		print_r($photos);
+		echo "\n</pre>\n</p>";
+	}
+	echo '</div>
+</body>
+</html>';
+	die();
+}
+
+function flickpress_popup_favorites() {
+	global $flickpress_per_page, $table_prefix;
+	$flickpress_options = get_option('flickpress_options');
+	$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+	$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+	$userlink = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=options&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . urlencode($_GET['fpuname']) . '">' . $_GET['fpuname'] . '</a>';
+	if ($_GET['page'] > 0) {
+		$page = $_GET['page'];
+	} else {
+		$page = 1;
+	}
+	$user_info = $phpflickpress->people_getInfo($_GET['fpid']);
+	$photos_url = $user_info['photosurl'];
+	echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=faves&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . __('favorites','flickpress') . "</a></h3>\n";
+	echo "<p>\n";
+	if ($photos = $phpflickpress->favorites_getPublicList($_GET['fpid'],NULL,NULL,NULL,$flickpress_per_page,$page)) {
+		$num_photos = $photos['photos']['total'];
+		$pages = ceil($num_photos/$flickpress_per_page);
+		if ($num_photos > 0) {
+			foreach ((array)$photos['photos']['photo'] as $photo) {
+				$photourl = $phpflickpress->buildPhotoURL($photo, 'Square');
+				$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
+				echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=showphoto&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;photoid=' . $photo['id'] . '&amp;returnto=faves&amp;page=' . $page . '">' . $imgcode . '</a> ';
+				unset($photourl,$imgcode,$flickrcode);
+			}
+			if ($pages > 1) {
+				$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=faves&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;page=';
+				$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $pages,'current' => $page)) . "</div>\n";
+				echo $page_nav_html;
+			}
+			echo "</p>\n";
+		} else {
+			echo '<p>' . __('This user has no favorites.','flickpress') . "</p>\n";
+		}
+	} else {
+		echo '<p>' . __('Failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
+		print_r($photos);
+		echo "\n</pre>\n</p>";
+	}
+	echo '</div>
+</body>
+</html>';
+	die();
+}
+
+function flickpress_popup_search() {
+	global $flickpress_per_page, $table_prefix;
+	$flickpress_options = get_option('flickpress_options');
+	$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+	$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+	if (isset($_POST['searchtext'])) {
+		$searchtext = $_POST['searchtext'];
+		if (isset($_POST['licensetype'])) {
+			$s_licenses = $_POST['licensetype'];
+		} elseif (isset($_POST['fpid'])) {
+			$fpid = $_POST['fpid'];
+			$fpuname = $_POST['fpuname'];
+		} else {
+			die(__('Search failed: missing user id or license type.'));
+		}
+	} else {
+		$searchtext = $_GET['searchtext'];
+		if (isset($_GET['licenses'])) {
+			$s_licenses = explode(' ',$_GET['licenses']);
+		} elseif (isset($_GET['fpid'])) {
+			$fpid = $_GET['fpid'];
+			$fpuname = $_GET['fpuname'];
+		} else {
+			die(__('Search failed: missing user id or license type.'));
+		}
+	}
+	if ($_GET['page'] > 0) {
+		$page = $_GET['page'];
+   } else {
+		$page = '1';
+	}
+	if (isset($s_licenses)) {
+		$fplicenses = $phpflickpress->photos_licenses_getInfo();
+		$comma_licenses = implode(',',$s_licenses);
+		$plus_licenses = implode('+',$s_licenses);
+		$searcharray = array('text' => $searchtext,'license' => $comma_licenses,'page' => $page,'per_page' => $flickpress_per_page);
+	} elseif (isset($fpid)) {
+		$searcharray = array('text' => $searchtext,'user_id' => $fpid,'page' => $page,'per_page' => $flickpress_per_page);
+	}
+	$photos = $phpflickpress->photos_search($searcharray);
+	if (isset($s_licenses)) {
+		$addthis = 'licenses=' . $plus_licenses;
+	} else {
+		$addthis = 'fpid=' . $fpid . '&amp;fpuname=' . urlencode($fpuname);
+	}
+	if (isset($s_licenses)) {
+		echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . __('Commons search','flickpress') . ' : &laquo;' . $searchtext . '&raquo;</h3>';
+	} else {
+		echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=options&amp;fptype=user&amp;fpid=' . $fpid . '&amp;fpuname=' . urlencode($fpuname) . '">' . $fpuname . '</a> : ' . __('search','flickpress') . ' : &laquo;' . $searchtext . "&raquo;</h3>\n";
+	}
+	echo "\n<p>";
+	if (isset($s_licenses)) {
+		$addthis = 'licenses=' . $plus_licenses; 
+	} else { 
+		$addthis = 'fpid=' . $fpid . '&amp;fpuname=' . urlencode($fpuname); 
+	}
+	if ($photos['total'] > 0) {
+		foreach ((array)$photos['photo'] as $photo) {
+			$photourl = $phpflickpress->buildPhotoURL($photo, 'Square');
+			$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
+			echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=showphoto&amp;photoid=' . $photo['id'] . '&amp;page=' . $page . '&amp;insearch=' . urlencode($searchtext) . '&amp;' .$addthis . '">' . $imgcode . '</a> ';
+			unset($photourl,$imgcode);
+		}
+		if ($photos['pages'] > 1) {
+			$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($searchtext) . '&amp;' . $addthis . '&amp;page=';
+			$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $photos['pages'],'current' => $page)) . "</div>\n";
+			echo $page_nav_html;
+		}
+	} else {
+		echo '<strong>' . __('None found!','flickpress') . '</strong>';
+	}
+   echo "</p>\n";
+	echo "<p>" . __('Search again:','flickpress') . '</p>
+		<form name="flickpress_search" method="post" action="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php">';
+	if (isset($s_licenses)) {
+		echo '<p><a class="fptoggle">' . __('Choose licenses &raquo;','flickpress') . '</a></p>
+		<div class="fpshowhide">
+		<ul>
+		';
+		foreach ($fplicenses as $fplicense) {
+			if ($fplicense['id'] !== '0' && in_array($fplicense['id'],$s_licenses) ) {
+				echo '<li><input name="licensetype[]" value="' . $fplicense['id'] . '" type="checkbox" checked="checked" /> <a href="' . $fplicense['url'] . '">' . $fplicense['name'] . "</a></li>\n";
+			} elseif ($fplicense['id'] !== '0') {
+				echo '<li><input name="licensetype[]" value="' . $fplicense['id'] . '" type="checkbox" /> <a href="' . $fplicense['url'] . '">' . $fplicense['name'] . "</a></li>\n";
+			}
+		}
+		echo '</ul>
+		</div>
+		';
+	} else {
+		echo '<input type="hidden" name="fpid" value="' . $fpid . '" />
+   <input type="hidden" name="fpuname" value="' . $fpuname . '" />
+';
+	}
+	echo '<input type="text" name="searchtext" value="" size="15" class="regular-text" /> <input type="submit" name="Submit" value="' . __('New search &raquo;','flickpress') . '" class="button" /></form>
+	</div>
+</body>
+</html>';
+	die();
+}
+
+function flickpress_popup_sets() {
+	global $flickpress_per_page, $table_prefix;
+	$flickpress_options = get_option('flickpress_options');
+	$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+	$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+	$userlink = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=options&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . urlencode($_GET['fpuname']) . '">' . $_GET['fpuname'] . '</a>';
+	$photos_url = $phpflickpress->urls_getUserPhotos($_GET['fpid']);
+	$setslink = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=sets&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . __('photosets','flickpress') . '</a>';
+	if (isset($_GET['showset'])) {
+		if ($_GET['page'] > 0) {
+			$page = $_GET['page'];
+		} else {
+			$page = 1;
+		}
+		if (($setphotos = $phpflickpress->photosets_getPhotos($photoset_id = $_GET['showset'], $extras = NULL, $privacy_filter = NULL, $per_page = $flickpress_per_page, $page = $page)) && ($setinfo = $phpflickpress->photosets_getInfo($photoset_id = $_GET['showset']))) {
+			echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . $setslink . ' : ' . htmlentities($setinfo['title']) . "</h3>\n";
+			echo '<p>';
+			foreach ((array)$setphotos['photoset']['photo'] as $photo) {
+				$photourl = $phpflickpress->buildPhotoURL($photo, "Square");
+				$imgcode = '<img alt="' . htmlentities($photo['title']) . '" src="' . $photourl . '" width="75" height="75" />';
+				echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=showphoto&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;photoid=' . $photo['id'] . '&amp;returnto=sets&amp;showset=' . $_GET['showset'] . '&amp;page=' . $page . '">' . $imgcode . '</a> ';
+				unset($photourl,$imgcode,$flickrcode);
+			}
+			echo "</p>\n";
+			if ($setphotos['photoset']['pages'] > 1) {
+				$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=sets&amp;showset=' . $_GET['showset'] . '&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;page=';
+				$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $setphotos['photoset']['pages'],'current' => $page)) . "</div>\n";
+				echo $page_nav_html;
+			}
+		} else {
+			echo '<p>' . __('Failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
+			print_r($setphotos);
+			echo "\n</pre>\n</p>";
+		}
+	} else {
+		echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . $userlink . __(' : photosets','flickpress'). "</h3>\n";
+		if ($photosets = $phpflickpress->photosets_getList($_GET['fpid'])) {
+			echo "\n<ul>\n";
+			foreach ((array)$photosets['photoset'] as $photoset) {
+				echo '<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=sets&amp;showset=' . $photoset['id'] . '&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . htmlentities($photoset['title']) . ' (' . $photoset['photos'] . ')</a></strong></li>';
+			}
+			echo "</ul>\n";
+		} else {
+			echo '<p>' . __('No photosets found or failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
+			print_r($photosets);
+			echo "\n</pre>\n</p>";
+		}
+	}
+	echo '</div>
+</body>
+</html>';
+	die();
+}
+
+function flickpress_popup_tags() {
+	global $flickpress_per_page, $table_prefix;
+	$flickpress_options = get_option('flickpress_options');
+	$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+	$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+	$userlink = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=options&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . urlencode($_GET['fpuname']) . '">' . $_GET['fpuname'] . '</a>';
+	$photos_url = $phpflickpress->urls_getUserPhotos($_GET['fpid']);
+	$tagslink = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=tags&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . __('tags','flickpress') . '</a>';
+	// show the photos for a tag
+	if (isset($_GET['showtag'])) {
+	echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . $tagslink . ' : ' . $_GET['showtag'] . "</h3>\n";
+		if ($_GET['page'] > 0) {
+			$page = $_GET['page'];
+		} else {
+			$page = 1;
+		}
+		if ($tagphotos = $phpflickpress->photos_search(array("user_id" => $_GET['fpid'], "tags" => $_GET['showtag'], "per_page" => $flickpress_per_page, "page" => $page))) {
+			$num_photos = $tagphotos['total'];
+			$pages = ceil($num_photos/$flickpress_per_page);
+			echo "<p>";
+			foreach ((array)$tagphotos['photo'] as $tagphoto) {
+				$photourl = $phpflickpress->buildPhotoURL($tagphoto, "Square");
+				$imgcode = '<img alt="' . htmlentities($tagphoto['title']) . '" src="' . $photourl . '" width="75" height="75" />';
+				echo '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=showphoto&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;photoid=' . $tagphoto['id'] . '&amp;returnto=tags&amp;showtag=' . $_GET['showtag'] . '&amp;page=' . $page . '">' . $imgcode . '</a> ';
+				unset($photourl,$imgcode,$flickrcode);
+			}
+			if ($pages > 1) {
+				$linkbase = get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=tags&amp;showtag=' . $_GET['showtag'] . '&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;page=';
+				$page_nav_html = "<div class='tablenav-pages prevnext'>" . paginate_links( array('base' => $linkbase.'%_%','format' => '%#%','prev_text' => __('&laquo; prev'),'next_text' => __('next &raquo;'),'total' => $pages,'current' => $page)) . ")</div>\n";
+				echo $page_nav_html;
+			}
+			echo "</p>\n";
+		} else {
+			echo '<p>' . __('Failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
+			print_r($tagphotos);
+			echo "\n</pre>\n</p>";
+		}
+	// list the user's tags
+	} else {
+		echo '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . $userlink . ' : ' . __('tags','flickpress') . "</h3>\n";
+		if ($_GET['fpshowtags'] == 'all') {
+			if ($tags = $phpflickpress->tags_getListUser($_GET['fpid'])) {
+				echo "<p>" . __('Displaying all tags.','flickpress') . ' <a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=tags&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;fpshowtags=popular">' . __('Show popular tags.','flickpress') . "</a></p>\n<ul>\n";
+				foreach ((array)$tags as $tag) {
+					echo '<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=tags&amp;showtag=' . $tag . '&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . htmlentities($tag) . '</a></strong></li>';
+				}
+				echo "\n</ul>\n";
+			} else {
+				echo '<p>' . __('No tags found or failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
+				print_r($tags);
+				echo "\n</pre>\n</p>";
+			}
+		} else {
+			if ($tags = $phpflickpress->tags_getListUserPopular($_GET['fpid'],20)) {
+				echo "<p>" . __('Displaying popular tags.','flickpress') . ' <a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=tags&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;fpshowtags=all">' . __('Show all tags.','flickpress') . "</a></p>\n<ul>\n";
+				foreach ((array)$tags as $tag) {
+					echo '<li><strong><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=tags&amp;showtag=' . $tag['_content'] . '&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">' . htmlentities($tag['_content']) . '</a></strong> (' . $tag['count'] . ')</li>';
+				}
+				echo "\n</ul>\n";
+			} else {
+				echo '<p>' . __('No tags found or failed to get data from Flickr. Possible error message:','flickpress') . "<br />\n<pre>\n";
+				print_r($tags);
+				echo "\n</pre>\n</p>";
+			}
+		}
+	}
+        echo '</div>
+</body>
+</html>';
+	die();
+}
+
+function flickpress_popup_showphoto() {
+	global $table_prefix;
+	$flickpress_options = get_option('flickpress_options');
+	$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+	$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+	$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+	if ($_GET['page'] > 0) {
+		$page = $_GET['page'];
+	} else {
+		$page = 1;
+	}
+	if (isset($_GET['licenses'])) {
+		$plus_licenses = str_replace(' ','+',$_GET['licenses']);
+	}
+	$photoinfo = $phpflickpress->photos_getInfo($_GET['photoid'],NULL);
+	if ($photoexif = $phpflickpress->photos_getExif($_GET['photoid'],NULL)) {
+		foreach ((array)$photoexif['exif'] as $e) {
+			if (empty($fpexif[$e['label']])) {
+				$fpexif[$e['label']] = (empty($e['clean']) ? $e['raw'] : $e['clean']);
+			}
+		}
+		if (!empty($fpexif['Model']) | !empty($fpexif['Shutterspeed']) | !empty($fpexif['Aperture']) | !empty($fpexif['Focal Length']) | !empty($fpexif['Exposure Bias']) | !empty($fpexif['ISO Speed']) | !empty($fpexif['Flash'])) {
+			$exiftable = '<table class="flickr-exif"><tbody>';
+			if (!empty($fpexif['Model']))
+				$exiftable .= "\n<tr><td>" . __('Camera:','flickpress') . '</td><td>' . $fpexif['Model'] . '</td></tr>';
+			if (!empty($fpexif['ShutterSpeed']))
+				$exiftable .= "\n<tr><td>" . __('Exposure:','flickpress') . '</td><td>' . $fpexif['ShutterSpeed'] . '</td></tr>';
+			if (!empty($fpexif['Aperture']))
+				$exiftable .= "\n<tr><td>" . __('Aperture:','flickpress') . '</td><td>' . $fpexif['Aperture'] . '</td></tr>';
+			if (!empty($fpexif['Focal Length']))
+				$exiftable .= "\n<tr><td>" . __('Focal Length:','flickpress') . '</td><td>' . $fpexif['Focal Length'] . '</td></tr>';
+			if (!empty($fpexif['Exposure Bias']))
+				$exiftable .= "\n<tr><td>" . __('Exposure Bias:','flickpress') . '</td><td>' . $fpexif['Exposure Bias'] . '</td></tr>';
+			if (!empty($fpexif['ISO Speed']))
+				$exiftable .= "\n<tr><td>" . __('ISO Speed:','flickpress') . '</td><td>' . $fpexif['ISO Speed'] . '</td></tr>';
+			if (!empty($fpexif['Flash']))
+				$exiftable .= "\n<tr><td>" . __('Flash:','flickpress') . '</td><td>' . $fpexif['Flash'] . '</td></tr>';
+			$exiftable .= "\n</tbody></table>";
+		} else {
+			$exiftable = '<p>' . __('No EXIF information available.','flickpress') . "</p>\n";
+		}
+	} else {
+			$exiftable = '<p>' . __('No EXIF information available.','flickpress') . "</p>\n";
+	}
+   if (!empty($photoinfo['description'])) {
+      $description = $photoinfo['description'];
+   } else {
+      $description = __('No photo description available.','flickpress');
+   }
+	if (!empty($photoinfo['title'])) {
+		$title = $photoinfo['title'];
+	} elseif (!empty($flickpress_options['untitled'])) {
+		$title = $flickpress_options['untitled'];
+	} else {
+		$title = '(untitled)';
+	}
+	$sizes = $phpflickpress->photos_getSizes($_GET['photoid']);
+	if ($flickpress_options['caporder'] == 'titleauthor') {
+		$caption = $flickpress_options['before'] . '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $title . '</a>' . $flickpress_options['between'] . '<a href="' . $phpflickpress->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>' . $flickpress_options['after'];
+	} else {
+		$caption = $flickpress_options['before'] . '<a href="' . $phpflickpress->urls_GetUserPhotos($photoinfo['owner']['nsid']) . '">' . $photoinfo['owner']['username'] . '</a>' . $flickpress_options['between'] . '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $title . '</a>' . $flickpress_options['after'];
+	}
+	foreach ($sizes as $size) {
+		if ($size['label'] == 'Original')
+			break;
+		$tbimg = $size['source'];
+	}
+	echo '<script type="text/javascript">' . "
+	//<![CDATA[
+	var imgurl = '" . rawurlencode($photoinfo['urls']['url']['0']['_content']) . "';
+	var tbimg = '" . rawurlencode($tbimg) . "';
+	var imgtitle = '" . rawurlencode($title) . "';
+	var imgtitleenc = '" . htmlentities($title, ENT_QUOTES) . "';
+	var imgdescription = '" . rawurlencode($photoinfo['description']) . "';
+	var imgcaption = '" . rawurlencode($caption) . "';
+	var imgexif = '" . rawurlencode($exiftable) . "';
+	//]]>
+	</script>";
+	if (isset($_GET['insearch'])) {
+		if (isset($plus_licenses)) {
+			$linkback = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($_GET['insearch']) . '&amp;page=' . $page . '&amp;licenses=' . $plus_licenses . '">';
+			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of photos from your search for &laquo;','flickpress') . $_GET['insearch'] . "&raquo;</a></p>\n";
+			$toplink = '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . __('Commons search','flickpress') . ' : ' . $linkback . '&laquo;' . $_GET['insearch'] . '&raquo;</a> : ' . $caption . "</h3>\n";
+		} else {
+			$linkback = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?searchtext=' . urlencode($_GET['insearch']) . '&amp;page=' . $page . '&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '">';
+			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of photos from your search for &laquo;','flickpress') . $_GET['insearch'] . "&raquo;</a></p>\n";
+			$toplink = '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=options&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . urlencode($_GET['fpuname']) . '">' . $_GET['fpuname'] . '</a> : ' . __('search','flickpress') . ' : ' . $linkback . '&laquo;' . $_GET['insearch'] . '&raquo;</a> : ' . $title . "</h3>\n";
+		}
+	} else {
+		$beglinkback = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=' . $_GET['returnto'] . '&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;page=' . $page;
+		$begtoplink = '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=options&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . urlencode($_GET['fpuname']) . '">' . $_GET['fpuname'] . '</a> : ' . '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;page=' . $page;
+		$endtoplink = '</a> : ' . $title . "</h3>\n";
+		if ($_GET['returnto'] == 'sets') {
+			$setinfo = $phpflickpress->photosets_getInfo($_GET['showset']);
+			$linkback = $beglinkback . '&amp;showset=' . $_GET['showset'] . '">';
+			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of photos from the (','flickpress') . $setinfo['title'] . __(') photoset.','flickpress') . "</a></p>\n";
+			$toplink = $begtoplink . '&amp;action=sets">' . __('photosets','flickpress') . '</a> : ' . $linkback . $setinfo['title'] . $endtoplink;
+		} elseif ($_GET['returnto'] == 'tags') {
+			$linkback = $beglinkback . '&amp;showtag=' . $_GET['showtag'] . '">';
+			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of photos from the (','flickpress') . $_GET['showtag'] . __(') tag.','flickpress') . "</a></p>\n";
+			$toplink = $begtoplink . '">' . __('tags','flickpress') . '</a> : ' . $linkback . $_GET['showtag'] . $endtoplink;
+		} elseif ($_GET['returnto'] == 'faves') {
+			$linkback = $beglinkback . '">';
+			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of favorite photos.','flickpress') . "</a></p>\n";
+			$toplink = $begtoplink . '&amp;fpaction=faves&amp;page=' . $_GET['page'] . '">' . __('favorites','flickpress') . $endtoplink;
+		} elseif ($_GET['returnto'] == 'interesting') {
+			$linkback = '<a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=' . $_GET['returnto'] . '&amp;page=' . $_GET['page'] . '">';
+			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of interesting photos.','flickpress') . "</a></p>\n";
+			$toplink = '<h3><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users">' . __('Home','flickpress') . '</a> : ' . $linkback . __('Interesting','flickpress') . $endtoplink;
+		} elseif($_GET['returnto'] == 'recent') {
+			$linkback = $beglinkback . '">';
+			$context = $phpflickpress->photos_getContext($_GET['photoid'],NULL);
+			if ($context['nextphoto']['id'] !== 0)
+				$prevnext = '<div class="alignleft"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=showphoto&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;photoid=' . $context['nextphoto']['id'] . '&amp;returnto=recent&amp;page=' . $page . '">' . __('&laquo; Newer','flickpress') . '</a></div>';
+			if ($context['prevphoto']['id'] !== 0)
+				$prevnext .= '<div class="alignright"><a href="' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=showphoto&amp;fptype=user&amp;fpid=' . $_GET['fpid'] . '&amp;fpuname=' . $_GET['fpuname'] . '&amp;photoid=' . $context['prevphoto']['id'] . '&amp;returnto=recent&amp;page=' . $page . '">' . __('Older &raquo;','flickpress') . '</a></div>';
+			$bottomlink = '<p>' . $linkback . __('Return to page ','flickpress') . $page . __(' of recent photos.','flickpress') . "</a></p>\n";
+			$toplink = $begtoplink . '&amp;fpaction=recent&amp;page=' . $page . '">' . __('recent','flickpress') . $endtoplink . "\n<div class='prevnext'>" . $prevnext . "</div>\n";
+		}
+	}
+	echo $toplink;
+	foreach ($sizes as $size) {
+		$fcodes[$size['label']] = '<img alt="' . $title . '" src="' . $size['source'] . '" title="' . $title . '" width="' . $size['width'] . '" height="' . $size['height'] . '" />';
+		$capflinked[$size['label']] = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . $fcodes[$size['label']] . '</a>';
+		$flinked[$size['label']] = '<a href="' . $photoinfo['urls']['url']['0']['_content'] . '">' . '<img alt="' . $title . '" src="' . $size['source'] . '" title="' . $title . '" width="' . $size['width'] . '" height="' . $size['height'] . '" class="' . $flickpress_options['insclass'] . '" />' . '</a>';
+		$divwidth = $size['width'] + 10;
+		$finserts[$size['label']] = '<strong><a class="fpinserting" href="#" onclick="insertcode(\'' . js_escape($size['source']) . '\',document.getElementById (\'add_caption\').checked,document.getElementById (\'add_desc\').checked,document.getElementById (\'add_exif\').checked,' . $divwidth . ',' . $size['width'] . ',' . $size['height'] . '); return false;">' . $size['label'] . "</a></strong> (" . $size['width'] . 'x' . $size['height'] . ")<br />\n";
+	}
+	if (isset($fcodes['Small'])) {
+		$popcode = $fcodes['Small'];
+	} elseif (isset($fcodes['Thumbnail'])) {
+		$popcode = $fcodes['Thumbnail'];
+	} else {
+		$popcode = __('Odd, there is no image to display...','flickpress');
+	}
+	echo '<div id="flickleft"><p>' . $popcode . "</p>\n";
+	echo '<p><strong>' . __('Description:','flickpress') . '</strong><br />';
+	echo $description . "</p>\n";
+	echo '<p><strong>' . __('EXIF:','flickpress') . '</strong></p>' . $exiftable . "\n";
+	$fplicenses = $phpflickpress->photos_licenses_getInfo();
+	echo '<p><strong>' . __('License:','flickpress') . '</strong><br />';
+	foreach ($fplicenses as $fplicense) {
+		if ($fplicense['id'] == $photoinfo['license']) {
+			if ($fplicense['url']) {
+				echo '<a href="' . $fplicense['url'] . '">' . $fplicense['name'] . '</a><br />';
+			} else {
+				echo $fplicense['name'] . '<br />';
+			}
+		}
+	}
+	if ($flickpress_options['captions'] == 'no') {
+		$fpchecked = '';
+	} else {
+		$fpchecked = ' checked="checked"';
+	}
+	echo '</p></div>
+	<div id="flickright">
+	<p><input name="add_caption" id="add_caption" value="1" type="checkbox"' . $fpchecked . ' /> <label for="add_caption">' . __('Caption the inserted image with the photo title and owner (e.g., to comply with licenses that require attribution).','flickpress') . '</label></p>
+	<p><input name="add_desc" id="add_desc" value="1" type="checkbox" /> <label for="add_desc">' . __('Add the photo description.','flickpress') . '</label></p>
+	<p><input name="add_exif" id="add_exif" value="1" type="checkbox" /> <label for="add_exif">' . __('Add a table of EXIF information.','flickpress') . '</label></p>
+	<p>' . __('<strong>Click a size to add it to your post:</strong>','flickpress') . '</p>
+	<p>';
+	foreach ($finserts as $finsert) {
+		echo $finsert;
+	}
+	echo "<span class='fpinserted'>" . __('Inserted it!','flickpress') . "</span></p></div>\n<div id='flickfoot'><p>" . __('Please be sure that your use is compatible with the photo license.','flickpress') . '</p>';
+	echo $bottomlink;
+	echo '</div></div>
+</body>
+</html>';
+	die();
 }
 
 ?>
