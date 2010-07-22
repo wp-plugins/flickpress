@@ -45,12 +45,10 @@ body {
 }
 
 #flickleft {
-	width: 280px;
 	float: left;
 }
 
 #flickright {
-	width: 280px;
 	float: right;
 }
 
@@ -101,4 +99,3 @@ a.page-numbers:hover {
    border-radius: 5px;
 	text-decoration: none;
 }
-

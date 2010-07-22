@@ -4,7 +4,7 @@ Donate link: http://familypress.net/flickpress/
 Tags: images, photos, flickr
 Requires at least: 2.9
 Tested up to: 3.0
-Stable tag: 1.9
+Stable tag: 1.9.1
 
 flickpress is a tool to find Flickr photos and insert them into your posts, plus a widget to display recent Flickr photos.
 
@@ -31,6 +31,16 @@ and text (such as HTML tags) to display before and after each image. Some tips:
 * For a vertical display, either use `<p>` before and `</p>` after or just a `<br />` after.
 * Most themes include a class called "centered" that will center your images in the sidebar.
 
+== Lightbox Support ==
+
+There are a couple of different ways to enable lightbox support for images inserted with flickpress.
+
+The easiest way is to just turn on ThickBox in the settings. This will add the necessary bits to your inserted images and add the necessary JavaScript to your theme for a simple lightbox.
+
+Another fairly easy method is to turn on the Custom lightbox option in the settings and install a lightbox plugin that automatically recognizes lightboxable image links. The Lightbox Plus plugin has worked for me with this method, and has lots of customization options.
+
+Finally, you could turn on the Custom lightbox option in the settings, enter a class or rel, then add your own lightbox JavaScript.
+
 == Template Function ==
 
 There is a simple template function available for use in your sidebar or other spots you'd like to include a few recent flickr photos. The function, its options, and the defaults are:
@@ -42,6 +52,13 @@ There is a simple template function available for use in your sidebar or other s
 This plugin relies heavily on Dan Coulter's nice phpFlickr library ( <http://phpflickr.com/> ). Using more than one plugin based on the library can cause conflicts, so I renamed the class in the library included with flickpress. If you're considering creating a plugin based on flickpress I highly recommend getting the latest official version of phpFlickr instead of using this modified version.
 
 == Changelog ==
+
+= 1.9.1 =
+* Added generic lightbox support.
+* Added title-only option for captions.
+* Fixed before/between/after text to allow HTML tags.
+* Various bug fixes to pass WP_DEBUG.
+* Added license default setting.
 
 = 1.9 =
 * Added some caption customization options.
@@ -110,6 +127,9 @@ This plugin relies heavily on Dan Coulter's nice phpFlickr library ( <http://php
 * Fixed "next page" bug for commons search.
 
 == Upgrade Notice ==
+
+= 1.9.1 =
+This version adds custom lightbox support, allows HTML tags in before/between/after caption text, fixes bugs to pass WP_DEBUG, and adds an option to set default licenses.
 
 = 1.9 =
 * Added caption customization, ThickBox support, updated phpFlickr, moved widget into main plugin.

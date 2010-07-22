@@ -3,7 +3,7 @@
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
 Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 1.9
+Version: 1.9.1
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
@@ -76,10 +76,11 @@ function flickpress_sanitize($input) {
 	$input['captions'] = wp_filter_nohtml_kses($input['captions']);
 	$input['captype'] = wp_filter_nohtml_kses($input['captype']);
 	$input['caporder'] = wp_filter_nohtml_kses($input['caporder']);
-	$input['before'] = wp_filter_nohtml_kses($input['before']);
-	$input['between'] = wp_filter_nohtml_kses($input['between']);
-	$input['after'] = wp_filter_nohtml_kses($input['after']);
+	$input['before'] = wp_filter_post_kses($input['before']);
+	$input['between'] = wp_filter_post_kses($input['between']);
+	$input['after'] = wp_filter_post_kses($input['after']);
 	$input['thickbox'] = wp_filter_nohtml_kses($input['thickbox']);
+	$input['license'] = $input['license'];
 	return $input;
 }
 
@@ -90,6 +91,7 @@ function flickpress_add_options_page() {
 
 // generates the flickpress Options subpanel
 function flickpress_options_subpanel() {
+	global $table_prefix;
 	echo '
 	<div class="wrap">
 	<h2>' . __('flickpress options','flickpress') . '</h2>
@@ -97,30 +99,38 @@ function flickpress_options_subpanel() {
 ';
 	settings_fields('flickpressoptions_options');
 	$flickpress_options = get_option('flickpress_options');
-	if (empty($flickpress_options['between']))
+	// set some defaults
+	if (empty($flickpress_options['caporder'])) {
+		// set defaults for between and untitled text here
+		// so users can set them to be empty if they really want to
 		$flickpress_options['between'] = ' by ';
-	if (empty($flickpress_options['caporder']))
-		$flickpress_options['caporder'] = 'titleauthor';
-	if (empty($flickpress_options['untitled']))
 		$flickpress_options['untitled'] = '(untitled)';
+		$flickpress_options['caporder'] = 'titleauthor';
+	}
 	if (empty($flickpress_options['usecap']))
 		$flickpress_options['usecap'] = 'edit_posts';
 	if (!empty($flickpress_options['apikey'])) {
 		if (!flickpress_check_key($flickpress_options['apikey'])) {
-			echo "\n<div id='flickpress-warning' class='updated fade'><p><strong>Error:</strong> Your Flickr API key seems to be invalid, please verify it is correct. This can also mean the Flickr API itself has changed, so if your key is correct please check for a plugin update.</p></div>\n";
+			echo "\n<div class='updated fade'><p><strong>Error:</strong> Flickr may be down, your Flickr API key may be invalid, or the Flickr API may have changed. If Flickr is up and your key is correct please check for a plugin update.</p></div>\n";
+			$key_works = false;
+		} else {
+			$key_works = true;
 		}
+	} else {
+		$key_works = false;
 	}
-	if (!current_user_can($flickpress_options['usecap'])) { // they're an admin, so the capability *must* be wrong...
-		echo "\n<div id='flickpress-warning' class='updated fade'><p><strong>Error:</strong> The capability you have entered below is incorrect.</p></div>\n";
+	if (!current_user_can($flickpress_options['usecap'])) {
+		// they're an admin, so the capability *must* be wrong...
+		echo "\n<div class='updated fade'><p><strong>Error:</strong> The capability you have entered below is incorrect.</p></div>\n";
 	}
 	echo '
 	<fieldset class="options">
 	<table class="form-table">
 		<tbody>
 					 <tr>
-								<th scope="row">' . __('flickr API key:','flickpress') . '</th>
+								<th scope="row">' . __('Flickr API key:','flickpress') . '</th>
 								<td><input name="flickpress_options[apikey]" type="text" value="' . $flickpress_options['apikey'] . '" size="30"><br />
-					 ' . __('Enter your <a href="http://flickr.com/services/api/keys/">flickr API key</a> here. This is required for the plugin to work.','flickpress') . '</td>
+					 ' . __('Enter your <a href="http://flickr.com/services/api/keys/">Flickr API key</a> here. This is required for the plugin to work.','flickpress') . '</td>
 					 </tr>
 		<tr>
 			<th scope="row">' . __('Capability required to use flickpress:','flickpress') . '</th>
@@ -164,42 +174,83 @@ function flickpress_options_subpanel() {
    if (empty($flickpress_options['caporder']) || ($flickpress_options['caporder'] == 'titleauthor')) {
       echo '<label><input name="flickpress_options[caporder]" type="radio" value="titleauthor" size="5" checked="checked"> ' . __('Title then author','flickpress') . '</label><br />';
       echo '<label><input name="flickpress_options[caporder]" type="radio" value="authortitle" size="5"> ' . __('Author then title','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[caporder]" type="radio" value="titleonly" size="5"> ' . __('Title only','flickpress') . '</label><br />';
+   } elseif ($flickpress_options['caporder'] == 'titleonly') {
+      echo '<label><input name="flickpress_options[caporder]" type="radio" value="titleauthor" size="5"> ' . __('Title then author','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[caporder]" type="radio" value="authortitle" size="5"> ' . __('Author then title','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[caporder]" type="radio" value="titleonly" size="5" checked="checked"> ' . __('Title only','flickpress') . '</label><br />';
    } else {
       echo '<label><input name="flickpress_options[caporder]" type="radio" value="titleauthor" size="5"> ' . __('Title then author','flickpress') . '</label><br />';
       echo '<label><input name="flickpress_options[caporder]" type="radio" value="authortitle" size="5" checked="checked"> ' . __('Author then title','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[caporder]" type="radio" value="titleonly" size="5"> ' . __('Title only','flickpress') . '</label><br />';
    }
    echo __('Configure the caption layout here.','flickpress') . '</td>
       </tr>
       <tr>
          <th scope="row">' . __('Before caption text:','flickpress') . '</th>
-         <td><input name="flickpress_options[before]" type="text" value="' . $flickpress_options['before'] . '" size="20"><br />
+         <td><input name="flickpress_options[before]" type="text" value="' . htmlentities(wp_kses_stripslashes($flickpress_options['before'])) . '" size="50"><br />
       ' . __('Text placed before the caption.','flickpress') . '</td>
       </tr>
       <tr>
          <th scope="row">' . __('Between caption text:','flickpress') . '</th>
-         <td><input name="flickpress_options[between]" type="text" value="' . $flickpress_options['between'] . '" size="20"><br />
+         <td><input name="flickpress_options[between]" type="text" value="' . htmlentities(wp_kses_stripslashes($flickpress_options['between'])) . '" size="50"><br />
       ' . __('Text placed between the caption parts.','flickpress') . '</td>
       </tr>
       <tr>
          <th scope="row">' . __('After caption text:','flickpress') . '</th>
-         <td><input name="flickpress_options[after]" type="text" value="' . $flickpress_options['after'] . '" size="20"><br />
+         <td><input name="flickpress_options[after]" type="text" value="' . htmlentities(wp_kses_stripslashes($flickpress_options['after'])) . '" size="50"><br />
       ' . __('Text placed after the caption.','flickpress') . '</td>
       </tr>
       <tr>
-         <th scope="row">' . __('Use ThickBox:','flickpress') . "</th>\n<td>";
+         <th scope="row">' . __('Lightbox support:','flickpress') . "</th>\n<td>";
    if ($flickpress_options['thickbox'] == 'yes') {
-      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="yes" size="5" checked="checked"> ' . __('On','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="yes" size="5" checked="checked"> ' . __('ThickBox','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="custom" size="5"> ' . __('Custom','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="no" size="5"> ' . __('Off','flickpress') . '</label><br />';
+   } elseif ($flickpress_options['thickbox'] == 'custom') {
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="yes" size="5"> ' . __('ThickBox','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="custom" size="5" checked="checked"> ' . __('Custom','flickpress') . '</label><br />';
       echo '<label><input name="flickpress_options[thickbox]" type="radio" value="no" size="5"> ' . __('Off','flickpress') . '</label><br />';
    } else {
-      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="yes" size="5"> ' . __('On','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="yes" size="5"> ' . __('ThickBox','flickpress') . '</label><br />';
+      echo '<label><input name="flickpress_options[thickbox]" type="radio" value="custom" size="5"> ' . __('Custom','flickpress') . '</label><br />';
       echo '<label><input name="flickpress_options[thickbox]" type="radio" value="no" size="5" checked="checked"> ' . __('Off','flickpress') . '</label><br />';
    }
-   echo __('Enable ThickBox display for inserted images.','flickpress') . '</td>
+   echo __('Add lightbox support for inserted images. Enabling <strong>ThickBox</strong> will also add the necessary JavaScript for ThickBox to work. Enable <strong>Custom</strong> if you would like to use a different lightbox system or if you want to use ThickBox but do not want the JavaScript added for you.','flickpress') . '</td>
       </tr>
+      <tr>
+         <th scope="row">' . __('Custom lightbox code:','flickpress') . '</th>
+         <td><input name="flickpress_options[tbcode]" type="text" value="' . htmlentities(wp_kses_stripslashes($flickpress_options['tbcode'])) . '" size="20"><br />
+      ' . __('Enter a custom HTML attribute or class here if your lightbox method requires it (most lightbox plugins do not). Format the code like <code>class="thickbox"</code> or <code>rel="lightbox"</code>.','flickpress') . '</td>
+      </tr>';
+	if ($key_works) {
+		echo '
+      <tr>
+         <th scope="row">' . __('Default licenses for CC photo searches:','flickpress') . '</th>
+         <td>';
+		$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+		$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+		$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+		$fplicenses = $phpflickpress->photos_licenses_getInfo();
+		foreach ($fplicenses as $fplicense) {
+			if ($fplicense['id'] !== '0') {
+				if (in_array($fplicense['id'],$flickpress_options['license'])) {
+					$checked = 'checked="checked" ';
+				} else {
+					$checked = '';
+				}
+				echo '<label for="' . $fplicense['name'] . '"> 
+<input name="flickpress_options[license][]" type="checkbox" value="' . $fplicense['id'] . '" ' . $checked . '"/> ' . $fplicense['name'] . ' <a href="' . $fplicense['url'] . '">' . __('(about)','flickpress') . '</a></label><br />';
+			}
+		}
+	echo '
+			</td>
+      </tr>';
+	}
+	echo '
 		</tbody>
 	</table> 
 	</fieldset>
-
 	<p class="submit"><input type="submit" name="Submit" value="' . __('Update Options &raquo;','flickpress') . '" /></p>
 </form> 
 </div>
@@ -213,32 +264,30 @@ function flickpress_management() {
 	if (isset($_POST['flickpress_update'])) {
 		$dels = 0;
 		$updates = 0;
-		foreach ((array)$_POST as $key=>$val) {
-			if (is_array($val)) {
-				if (($val['delete'] == '1')) {
-					if (flickpress_delete($val['flickrid'])) {
+		$update_array = array();
+		foreach ((array)$_POST as $val) {
+			if (isset($val['delete'])) {
+				if ($val['delete'] == '1') {
+					if (flickpress_delete($val['flickrid']))
 						$dels++;
-					}
-				} elseif (!empty($val['flickrid'])) {
-													 $update_array = array();
-													 $update_array['flickrid'] = $val['flickrid'];
-													 $update_array['flickrname'] = $val['flickrname'];
-													 if (flickpress_update($update_array)) {
-																$updates++;
-													 }
-										  }
-								}
-					 }
-					 echo "<div class='updated'>";
-					 if ($dels > 0) {
-								echo $dels . __(' records deleted. ','flickpress');
-					 }
-					 if ($updates > 0) {
-								echo $updates . __(' records updated.','flickpress');
-					 }
-  echo "</div>\n";
-		  }
-		  echo '
+				}
+			} else {
+				if (!empty($val['flickrid'])) {
+					$update_array['flickrid'] = $val['flickrid'];
+					$update_array['flickrname'] = $val['flickrname'];
+					if (flickpress_update($update_array))
+						$updates++;
+				}
+			}
+		}
+		echo "<div class='updated'>";
+		if ($dels > 0)
+			echo $dels . __(' records deleted. ','flickpress');
+		if ($updates > 0)
+			echo $updates . __(' records updated.','flickpress');
+		echo "</div>\n";
+	}
+	echo '
 		  <div class="wrap">
 		  <h2>' . __('flickpress manager','flickpress') . '</h2>
 		  <p>' . __('You can manually manage flickpress users here. It is possible to add users here but that is much easier to do from the popup tool because you can look up users by email address there.','flickpress') . '</p>
@@ -337,6 +386,7 @@ function flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpcla
 			$user_info = $flick->people_getInfo($user_id['id']);
 			$photos_url = $user_info['photosurl'];
 			$photos = $flick->people_getPublicPhotos($user_info['id'],NULL,NULL,$numphotos,1);
+			$imgcode = '';
 			foreach ((array)$photos['photos']['photo'] as $photo) {
 				$photourl = $flick->buildPhotoURL($photo, "Square");
 				$imgcode .= $before . '<a href="' . $photos_url . $photo['id'] . '"><img border="0" alt="' . $photo['title'] . '" title="' . $photo['title'] . '" src="' . $photourl . '" class="' . $fpclass . '" width="75" height="75" /></a>' . $after;
@@ -365,88 +415,88 @@ if ( ( !$flickpress_options || empty($flickpress_options['apikey'])) && !isset($
    return;
 }
 
-function widget_fpwidg_init() {
-	// Check for the required plugin functions. This will prevent fatal
-	// errors occurring when you deactivate the dynamic-sidebar plugin.
-	if ( !function_exists('register_sidebar_widget') || !function_exists('flickpress_photos'))
-		return;
-
-	function widget_fpwidg($args) {
-		// $args is an array of strings that help widgets to conform to
-		// the active theme: before_widget, before_title, after_widget,
-		// and after_title are the array keys. Default tags: li and h2.
-		extract($args);
-		// Each widget can store its own options. We keep strings here.
-		$options = get_option('widget_fpwidg');
-		$title = $options['title'];
-		$fpclass = $options['style'];
-		$after = stripslashes(html_entity_decode($options['after'],ENT_QUOTES));
-		$before = stripslashes(html_entity_decode($options['before'],ENT_QUOTES));
-		$email = $options['email'];
-		$numphotos = (int)$options['number'];
-		// These lines generate our output.
-		// First echo out the required stuff.
-		echo $before_widget . $before_title . $title . $after_title;
-		// Now display the Flickr photo(s).
-		flickpress_photos($email,$numphotos,$before,$after,$fpclass);
-		// And echo the required after-widget bit.
-		echo $after_widget;
+/* flickpressWidget Class */
+class flickpressWidget extends WP_Widget {
+	/** constructor */
+	function flickpressWidget() {
+		$widget_ops = array('description' => __( "Display recent photos from a Flickr account" ) );
+		$this->WP_Widget('flickpress', __('Flickr Photos'), $widget_ops);
 	}
 
-	// This is the function that outputs the form to let the users edit
-	// the widget's title and number of images displayed.
-	function widget_fpwidg_control() {
+	/** @see WP_Widget::widget  - display the widget */
+	function widget($args, $instance) {
+		extract( $args );
+		$title = apply_filters('widget_title', $instance['title']);
+		$style = $instance['style'];
+		$email = $instance['email'];
+		$number = (int)$instance['number'];
+		$after = stripslashes(html_entity_decode($instance['after'],ENT_QUOTES));
+		$before = stripslashes(html_entity_decode($instance['before'],ENT_QUOTES));
+		?>
+			<?php echo $before_widget; ?>
+				<?php if ( $title )
+					echo $before_title . $title . $after_title; ?>
+				<?php if ( function_exists('flickpress_photos') )
+					flickpress_photos($email,$number,$before,$after,$style); ?>
+			<?php echo $after_widget; ?>
+		<?php
+	} // function widget
 
-		// Get our options and see if we're handling a form submission.
-		$options = get_option('widget_fpwidg');
-		if ( !is_array($options) )
-			$options = array('title'=>'', 'style'=>'', 'email'=>'', 'number'=>'1', 'widgets', 'before'=>'<p>', 'after'=>'</p>');
-		if ( $_POST['fpwidg-submit'] ) {
-			$options['title'] = strip_tags(stripslashes($_POST['fpwidg-title']));
-			$options['email'] = sanitize_email($_POST['fpwidg-email']);
-			$options['style'] = strip_tags(stripslashes($_POST['fpwidg-style']));
-			$options['number'] = strip_tags(stripslashes($_POST['fpwidg-number']));
-			// Swap double for single quotes.
-			$options['before'] = htmlentities(str_replace('"',"'",$_POST['fpwidg-before']),ENT_QUOTES);
-			$options['after'] = htmlentities(str_replace('"',"'",$_POST['fpwidg-after']),ENT_QUOTES);
-			update_option('widget_fpwidg', $options);
+	/** @see WP_Widget::update  - process the options */
+	function update($new_instance, $old_instance) {
+		$instance = $old_instance;
+		$instance['title'] = strip_tags($new_instance['title']);
+		$instance['email'] = sanitize_email($new_instance['email']);
+		$instance['style'] = strip_tags(stripslashes($new_instance['style']));
+		$instance['number'] = strip_tags(stripslashes($new_instance['number']));
+		if ( current_user_can('unfiltered_html') ) {
+			$instance['before'] =  $new_instance['before'];
+			$instance['after'] =  $new_instance['after'];
+		} else {
+			$instance['before'] = stripslashes( wp_filter_post_kses( addslashes($new_instance['before']) ) );
+			$instance['after'] = stripslashes( wp_filter_post_kses( addslashes($new_instance['after']) ) );
 		}
-		$title = htmlspecialchars($options['title'], ENT_QUOTES);
-		$style = htmlspecialchars($options['style'], ENT_QUOTES);
-		$email = htmlspecialchars($options['email'], ENT_QUOTES);
-		$before = stripslashes(html_entity_decode($options['before'], ENT_QUOTES));
-		$after = stripslashes(html_entity_decode($options['after'], ENT_QUOTES));
-		$number = (int)$options['number'];
-		// Here is our little form segment. Notice that we don't need a
-		// complete form. This will be embedded into the existing form.
-		echo '<p style="text-align:right;"><label for="fpwidg-title">' . __('Title:') . ' <input style="width: 100px;" id="fpwidg-title" name="fpwidg-title" type="text" value="'.$title.'" /></label></p>';
-		echo '<p style="text-align:right;"><label for="fpwidg-style">' . __('Style class:') . ' <input style="width: 100px;" id="fpwidg-style" name="fpwidg-style" type="text" value="'.$style.'" /></label></p>';
-		echo '<p style="text-align:right;"><label for="fpwidg-before">' . __('Before each image:') . ' <input style="width: 100px;" id="fpwidg-before" name="fpwidg-before" type="text" value="'.$before.'" /></label></p>';
-		echo '<p style="text-align:right;"><label for="fpwidg-after">' . __('After each image:') . ' <input style="width: 100px;" id="fpwidg-after" name="fpwidg-after" type="text" value="'.$after.'" /></label></p>';
-		echo '<p style="text-align:right;"><label for="fpwidg-email">' . __('Flickr email:') . ' <input style="width: 100px;" id="fpwidg-email" name="fpwidg-email" type="text" value="'.$email.'" /></label></p>';
-		echo '<p style="text-align:right;"><label for="fpwidg-number">' . __('Number of images:') . '<select id="fpwidg-number" name="fpwidg-number"' . ">\n";
-		for ($i=1;$i<=10;$i++) {
-			echo '<option value="' . $i . '"';
+		return $instance;
+	} // function update
+
+	/** @see WP_Widget::form  - output the options form */
+	function form($instance) {
+		$instance = wp_parse_args( (array) $instance,  array('title'=>'', 'style'=>'', 'email'=>'', 'number'=>'1', 'widgets', 'before'=>'<p>', 'after'=>'</p>') );
+		$title = htmlspecialchars($instance['title'], ENT_QUOTES);
+		$style = htmlspecialchars($instance['style'], ENT_QUOTES);
+		$email = htmlspecialchars($instance['email'], ENT_QUOTES);
+		$before = format_to_edit($instance['before']);
+		$after = format_to_edit($instance['after']);
+		$number = (int)$instance['number'];
+		?>
+			<p><label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:'); ?> <input class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" type="text" value="<?php echo $title; ?>" /></label></p>
+
+			<p><label for="<?php echo $this->get_field_id('style'); ?>"><?php _e('Style class:'); ?> <input class="widefat" id="<?php echo $this->get_field_id('style'); ?>" name="<?php echo $this->get_field_name('style'); ?>" type="text" value="<?php echo $style; ?>" /></label></p>
+
+			<p><label for="<?php echo $this->get_field_id('before'); ?>"><?php _e('Before each image:'); ?> <input class="widefat" id="<?php echo $this->get_field_id('before'); ?>" name="<?php echo $this->get_field_name('before'); ?>" type="text" value="<?php echo $before; ?>" /></label></p>
+
+			<p><label for="<?php echo $this->get_field_id('after'); ?>"><?php _e('After each image:'); ?> <input class="widefat" id="<?php echo $this->get_field_id('after'); ?>" name="<?php echo $this->get_field_name('after'); ?>" type="text" value="<?php echo $after; ?>" /></label></p>
+
+			<p><label for="<?php echo $this->get_field_id('email'); ?>"><?php _e('Flickr email:'); ?> <input class="widefat" id="<?php echo $this->get_field_id('email'); ?>" name="<?php echo $this->get_field_name('email'); ?>" type="text" value="<?php echo $email; ?>" /></label></p>
+
+		
+			<p><label for="<?php echo $this->get_field_id('number'); ?>"><?php _e('Number of images:'); ?><select id="<?php echo $this->get_field_id('number'); ?>" name="<?php echo $this->get_field_name('number'); ?>">
+			<?php
+			for ($i=1;$i<=10;$i++) {
+				echo '<option value="' . $i . '"';
 				if ($number == $i) {
 					echo ' selected="selected"';
 				}
-			echo '>' . $i . "</option>\n";
-      }
-		echo "</select>\n" . '</label></p>';
-		echo '<input type="hidden" id="fpwidg-submit" name="fpwidg-submit" value="1" />';
-	}
-	
-	// This registers our widget so it appears with the other available
-	// widgets and can be dragged and dropped into any active sidebars.
-	register_sidebar_widget(array('flickpress', 'widgets'), 'widget_fpwidg');
+				echo '>' . $i . "</option>\n";
+			}
+			?>
+			</select></label></p>
+		<?php
+	} // function form
+} // class flickpressWidget
 
-	// This registers our optional widget control form. Because of this
-	// our widget will have a button that reveals a 300x100 pixel form.
-	register_widget_control(array('flickpress', 'widgets'), 'widget_fpwidg_control');
-}
-
-// Run our code later in case this loads prior to any required plugins.
-add_action('widgets_init', 'widget_fpwidg_init');
+// register flickpressWidget widget
+add_action('widgets_init', create_function('', 'return register_widget("flickpressWidget");'));
 
 // Add the thickbox stuff if the option is set
 function flickpress_scripts() {
