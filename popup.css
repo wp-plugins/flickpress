@@ -46,10 +46,12 @@ body {
 
 #flickleft {
 	float: left;
+	width: 280px;
 }
 
 #flickright {
 	float: right;
+	width: 280px;
 }
 
 #flickfoot {

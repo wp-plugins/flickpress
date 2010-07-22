@@ -234,10 +234,14 @@ function flickpress_options_subpanel() {
 		$fplicenses = $phpflickpress->photos_licenses_getInfo();
 		foreach ($fplicenses as $fplicense) {
 			if ($fplicense['id'] !== '0') {
-				if (in_array($fplicense['id'],$flickpress_options['license'])) {
+				if (!isset($flickpress_options['license'])) {
 					$checked = 'checked="checked" ';
 				} else {
-					$checked = '';
+					if (in_array($fplicense['id'],$flickpress_options['license'])) {
+						$checked = 'checked="checked" ';
+					} else {
+						$checked = '';
+					}
 				}
 				echo '<label for="' . $fplicense['name'] . '"> 
 <input name="flickpress_options[license][]" type="checkbox" value="' . $fplicense['id'] . '" ' . $checked . '"/> ' . $fplicense['name'] . ' <a href="' . $fplicense['url'] . '">' . __('(about)','flickpress') . '</a></label><br />';
