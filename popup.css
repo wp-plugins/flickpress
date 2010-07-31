@@ -45,13 +45,13 @@ body {
 }
 
 #flickleft {
-	width: 280px;
 	float: left;
+	width: 280px;
 }
 
 #flickright {
-	width: 280px;
 	float: right;
+	width: 280px;
 }
 
 #flickfoot {
@@ -67,7 +67,7 @@ body {
 	display: block;
 	text-align: center;
 	margin-top: 10px;
-	margin-bottom: 40px;
+	margin-bottom: 10px;
 }
 
 .usertable td {
@@ -76,4 +76,28 @@ body {
 
 .usertable {
 	margin-bottom: 15px;
-} 
+}
+
+a.page-numbers {
+   border: 1px solid #ccc;
+   padding: 5px;
+   border-radius: 5px;
+   background-color: #eee;
+	text-decoration: none;
+}
+
+.prevnext .current {
+   border: 1px solid #ddd;
+   background-color: #ddd;
+   padding: 5px;
+   border-radius: 5px;
+   color: #666;
+}
+
+a.page-numbers:hover {
+   border: 1px solid #d54e21;
+   padding: 5px;
+   color: #d54e21;
+   border-radius: 5px;
+	text-decoration: none;
+}
