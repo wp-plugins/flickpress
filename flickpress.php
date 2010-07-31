@@ -3,7 +3,7 @@
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
 Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 1.9.1
+Version: 1.9.2
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
@@ -31,7 +31,6 @@ function flickpress_mce_external_plugins($plugins) {
    $plugins['flickpress'] = $flickpress_url . '/tinymce/v3/editor_plugin.js';
    return $plugins;
 }
-
 // Add a button to the HTML editor (borrowed from Kimili Flash Embed)
 function fp_add_quicktags() {
    $buttonshtml = '<input type="button" class="ed_button" onclick="edflickpress(); return false;" title="' . __('Insert Flickr photos','flickpress') . '" value="' . __('Flickr','flickpress') . '" />';
@@ -53,11 +52,13 @@ function fp_add_quicktags() {
 
 // Load the javascript for the popup tool.
 function flickpress_popup_javascript() {
+	global $post_ID, $temp_ID;
+	$parent_ID = (int) (0 == $post_ID ? $temp_ID : $post_ID);
    echo '
 <script type="text/javascript">
 //<![CDATA[
 function edflickpress() {
-   tb_show("' . __('flickpress: insert Flickr photos','flickpress') . '","' . get_bloginfo('wpurl') . '/wp-content/plugins/flickpress/popup.php?fpaction=users&amp;TB_iframe=true",false);
+   tb_show("' . __('flickpress: insert Flickr photos','flickpress') . '","' . WP_PLUGIN_URL . '/flickpress/popup.php?fpaction=users&fp_parent_ID=' . $parent_ID . '&TB_iframe=true",false);
 }
 //]]>
 </script>
@@ -111,7 +112,7 @@ function flickpress_options_subpanel() {
 		$flickpress_options['usecap'] = 'edit_posts';
 	if (!empty($flickpress_options['apikey'])) {
 		if (!flickpress_check_key($flickpress_options['apikey'])) {
-			echo "\n<div class='updated fade'><p><strong>Error:</strong> Flickr may be down, your Flickr API key may be invalid, or the Flickr API may have changed. If Flickr is up and your key is correct please check for a plugin update.</p></div>\n";
+			echo "\n<div class='updated fade'><p><strong>Error:</strong> Flickr may be down or very slow, your internet connection may be down or very slow, your Flickr API key may be invalid, or the Flickr API may have changed. If Flickr is up, your connection is fine, and your key is correct please check for a plugin update.</p></div>\n";
 			$key_works = false;
 		} else {
 			$key_works = true;
@@ -120,7 +121,7 @@ function flickpress_options_subpanel() {
 		$key_works = false;
 	}
 	if (!current_user_can($flickpress_options['usecap'])) {
-		// they're an admin, so the capability *must* be wrong...
+		// they're an admin, so the capability must be wrong...
 		echo "\n<div class='updated fade'><p><strong>Error:</strong> The capability you have entered below is incorrect.</p></div>\n";
 	}
 	echo '
@@ -263,8 +264,9 @@ function flickpress_options_subpanel() {
 
 // makes the flickpress Management page
 function flickpress_management() {
-	global $flickpress_options, $wpdb, $table_prefix;
-	$table_name = $table_prefix . "flickpress";
+	global $wpdb;
+	$flickpress_options = get_option('flickpress_options');
+	$table_name = $wpdb->prefix . "flickpress";
 	if (isset($_POST['flickpress_update'])) {
 		$dels = 0;
 		$updates = 0;
@@ -330,7 +332,6 @@ function flickpress_management() {
 }
 
 function flickpress_add_management_page() {
-	global $flickpress_options;
 	add_management_page('flickpress', 'flickpress', 'manage_options', basename(__FILE__), 'flickpress_management');
 }
 
@@ -338,32 +339,32 @@ add_action('admin_menu', 'flickpress_add_management_page');
 
 // install or update a table in the db for data
 function flickpress_table_install() {
-		  global $table_prefix, $wpdb;
-		  $table_name = $table_prefix . "flickpress";
-		  $cache_table_name = $table_prefix . "flickpress_cache";
-		  $sql = "CREATE TABLE ".$table_name." (
-					 flickrid varchar(20) NULL,
-					 flickrname varchar(30) NULL
-		  );
-	CREATE TABLE ".$cache_table_name." (
-		request CHAR( 35 ) NOT NULL ,
-		response MEDIUMTEXT NOT NULL ,
-		expiration DATETIME NOT NULL ,
-		INDEX ( request )
-	);";
-		  require_once(ABSPATH . 'wp-admin/upgrade-functions.php');
-		  dbDelta($sql);
+	global $wpdb;
+	$table_name = $wpdb->prefix . "flickpress";
+	$cache_table_name = $wpdb->prefix . "flickpress_cache";
+	$sql = "CREATE TABLE ".$table_name." (
+			flickrid varchar(20) NULL,
+			flickrname varchar(30) NULL
+		);
+		CREATE TABLE ".$cache_table_name." (
+			request CHAR( 35 ) NOT NULL,
+			response MEDIUMTEXT NOT NULL,
+			expiration DATETIME NOT NULL,
+			INDEX ( request )
+		);";
+	require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+	dbDelta($sql);
 }
 
 function flickpress_delete($id) {
-		  global $wpdb, $table_prefix;
-		  $table_name = $table_prefix . "flickpress";
-		  $id = $wpdb->escape($id);
-		  if ($wpdb->query("DELETE FROM $table_name WHERE binary flickrid = '$id'")) {
-					 return TRUE;
-		  } else {
-					 return FALSE;
-		  }
+	global $wpdb;
+	$table_name = $wpdb->prefix . "flickpress";
+	$id = $wpdb->escape($id);
+	if ($wpdb->query("DELETE FROM $table_name WHERE binary flickrid = '$id'")) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
 }
 
 function flickpress_uninstall() {
@@ -377,28 +378,38 @@ register_activation_hook( __FILE__, 'flickpress_table_install');
 register_deactivation_hook( __FILE__, 'flickpress_uninstall');
 
 // a simple template function to display photos in a sidebar or somesuch
+// echoes if it works, fails quietly
 function flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered') {
-	$flickpress_options = get_option('flickpress_options');
-	global $table_prefix;
-	if (isset($flickpress_options['apikey'])) {
-		$flick = new phpFlickpress($flickpress_options['apikey']);
-		$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
-		$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
-		$check = $flick->photos_getRecent(NULL,1,1);
-		if ($check['page'] == 1) {
-			$user_id = $flick->people_findByEmail($email);
-			$user_info = $flick->people_getInfo($user_id['id']);
-			$photos_url = $user_info['photosurl'];
-			$photos = $flick->people_getPublicPhotos($user_info['id'],NULL,NULL,$numphotos,1);
-			$imgcode = '';
-			foreach ((array)$photos['photos']['photo'] as $photo) {
-				$photourl = $flick->buildPhotoURL($photo, "Square");
-				$imgcode .= $before . '<a href="' . $photos_url . $photo['id'] . '"><img border="0" alt="' . $photo['title'] . '" title="' . $photo['title'] . '" src="' . $photourl . '" class="' . $fpclass . '" width="75" height="75" /></a>' . $after;
+	$concheck = @fsockopen("flickr.com", 80, $errno, $errstr, 15);
+	if (!$concheck) {
+		fclose($concheck);
+		return false;
+	} else {
+		$flickpress_options = get_option('flickpress_options');
+		global $table_prefix;
+		if (isset($flickpress_options['apikey'])) {
+			$flick = new phpFlickpress($flickpress_options['apikey']);
+			$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+			$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+			$check = $flick->photos_getRecent(NULL,1,1);
+			if ($check['page'] == 1) {
+				$user_id = $flick->people_findByEmail($email);
+				$user_info = $flick->people_getInfo($user_id['id']);
+				$photos_url = $user_info['photosurl'];
+				$photos = $flick->people_getPublicPhotos($user_info['id'],NULL,NULL,$numphotos,1);
+				$imgcode = '';
+				foreach ((array)$photos['photos']['photo'] as $photo) {
+					$photourl = $flick->buildPhotoURL($photo, "Square");
+					$imgcode .= $before . '<a href="' . $photos_url . $photo['id'] . '"><img border="0" alt="' . $photo['title'] . '" title="' . $photo['title'] . '" src="' . $photourl . '" class="' . $fpclass . '" width="75" height="75" /></a>' . $after;
+				}
+				return $imgcode;
+			} else {
+				return false;
 			}
-			echo $imgcode;
+		} else {
+			return false;
 		}
 	}
-	return;
 }
 
 add_action('edit_form_advanced','fp_add_quicktags');
@@ -409,25 +420,15 @@ add_filter('mce_buttons','flickpress_mce_buttons');
 add_action('admin_init','flickpress_options_init');
 add_action('admin_menu', 'flickpress_add_options_page');
 
-$flickpress_options = get_option('flickpress_options');
-
-if ( ( !$flickpress_options || empty($flickpress_options['apikey'])) && !isset($_POST['submit']) ) {
-   function flickpress_warning() {
-      echo "\n<div id='flickpress-warning' class='updated fade'><p>".sprintf(__('You must <a href="%1$s">enter your Flickr API key</a> for flickpress to work.'), "options-general.php?page=flickpress_options")."</p></div>\n";
-   }
-   add_action('admin_notices', 'flickpress_warning');
-   return;
-}
-
-/* flickpressWidget Class */
+// flickpressWidget Class 
 class flickpressWidget extends WP_Widget {
-	/** constructor */
+	// constructor
 	function flickpressWidget() {
 		$widget_ops = array('description' => __( "Display recent photos from a Flickr account" ) );
 		$this->WP_Widget('flickpress', __('Flickr Photos'), $widget_ops);
 	}
 
-	/** @see WP_Widget::widget  - display the widget */
+	// @see WP_Widget::widget  - display the widget
 	function widget($args, $instance) {
 		extract( $args );
 		$title = apply_filters('widget_title', $instance['title']);
@@ -440,13 +441,15 @@ class flickpressWidget extends WP_Widget {
 			<?php echo $before_widget; ?>
 				<?php if ( $title )
 					echo $before_title . $title . $after_title; ?>
-				<?php if ( function_exists('flickpress_photos') )
-					flickpress_photos($email,$number,$before,$after,$style); ?>
+				<?php if ( function_exists('flickpress_photos') ) {
+					if ($images = flickpress_photos($email,$number,$before,$after,$style))
+						echo flickpress_photos($email,$number,$before,$after,$style);
+				} ?>
 			<?php echo $after_widget; ?>
 		<?php
 	} // function widget
 
-	/** @see WP_Widget::update  - process the options */
+	// @see WP_Widget::update  - process the options
 	function update($new_instance, $old_instance) {
 		$instance = $old_instance;
 		$instance['title'] = strip_tags($new_instance['title']);
@@ -463,7 +466,7 @@ class flickpressWidget extends WP_Widget {
 		return $instance;
 	} // function update
 
-	/** @see WP_Widget::form  - output the options form */
+	// @see WP_Widget::form  - output the options form
 	function form($instance) {
 		$instance = wp_parse_args( (array) $instance,  array('title'=>'', 'style'=>'', 'email'=>'', 'number'=>'1', 'widgets', 'before'=>'<p>', 'after'=>'</p>') );
 		$title = htmlspecialchars($instance['title'], ENT_QUOTES);
@@ -518,5 +521,25 @@ function flickpress_load_tb_fix() {
 }
 
 add_action('wp_footer', 'flickpress_load_tb_fix');
+
+function flickpress_shortcode_tag ($atts) {
+	$atts_array = shortcode_atts(array(
+		'number' => '3',
+		'before' => '<p>',
+		'after' => '</p>',
+		'style' => 'none',
+		'email' => '',
+	), $atts);
+	extract($atts_array);
+	$before = stripslashes(html_entity_decode($before,ENT_QUOTES));
+	$after = stripslashes(html_entity_decode($after,ENT_QUOTES));
+	if ($images = flickpress_photos($email,$number,$before,$after,$style)) {
+		return $images;
+	} else {
+		return;
+	}
+}
+
+add_shortcode('flickpress','flickpress_shortcode_tag');
 
 ?>
