@@ -9,7 +9,9 @@ p.fpupdated {
 }
 
 body {
+	padding: 0px 10px;
 	background-color: #fff;
+	height: 80%;
 }
 
 #popupmenu a {

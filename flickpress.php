@@ -3,7 +3,7 @@
 Plugin Name: flickpress
 Plugin URI: http://familypress.net/flickpress/
 Description: A multi-user Flickr tool plus widget. Creates database tables to store Flickr ids and cache data. Uses Dan Coulter's excellent phpFlickr class. Requires a Flickr API key.
-Version: 1.9.2
+Version: 1.9.3
 Author: Isaac Wedin
 Author URI: http://familypress.net/
 */
@@ -31,21 +31,11 @@ function flickpress_mce_external_plugins($plugins) {
    $plugins['flickpress'] = $flickpress_url . '/tinymce/v3/editor_plugin.js';
    return $plugins;
 }
-// Add a button to the HTML editor (borrowed from Kimili Flash Embed)
+
 function fp_add_quicktags() {
-   $buttonshtml = '<input type="button" class="ed_button" onclick="edflickpress(); return false;" title="' . __('Insert Flickr photos','flickpress') . '" value="' . __('Flickr','flickpress') . '" />';
 ?>
 <script type="text/javascript" charset="utf-8">
-// <![CDATA[
-   (function(){
-      if (typeof jQuery === 'undefined') {
-         return;
-      }
-      jQuery(document).ready(function(){
-         jQuery("#ed_toolbar").append('<?php echo $buttonshtml; ?>');
-      });
-   }());
-// ]]>
+	QTags.addButton( id='flickpress', display='Flickr', arg1=edflickpress, arg2='', access_key='f', title='Browse and Insert Flickr Photos', priority='');
 </script>
 <?php
 }
@@ -58,7 +48,7 @@ function flickpress_popup_javascript() {
 <script type="text/javascript">
 //<![CDATA[
 function edflickpress() {
-   tb_show("' . __('flickpress: insert Flickr photos','flickpress') . '","' . WP_PLUGIN_URL . '/flickpress/popup.php?fpaction=users&fp_parent_ID=' . $parent_ID . '&TB_iframe=true",false);
+   tb_show("' . __('Browse and Insert Flickr Photos','flickpress') . '","' . WP_PLUGIN_URL . '/flickpress/popup.php?fpaction=users&fp_parent_ID=' . $parent_ID . '&TB_iframe=true",false);
 }
 //]]>
 </script>
@@ -70,19 +60,26 @@ function flickpress_options_init() {
 }
 
 function flickpress_sanitize($input) {
-	$input['apikey'] = wp_filter_nohtml_kses($input['apikey']);
-	$input['usecap'] = wp_filter_nohtml_kses($input['usecap']);
-	$input['insclass'] = wp_filter_nohtml_kses($input['insclass']);
-	$input['untitled'] = wp_filter_nohtml_kses($input['untitled']);
-	$input['captions'] = wp_filter_nohtml_kses($input['captions']);
-	$input['captype'] = wp_filter_nohtml_kses($input['captype']);
-	$input['caporder'] = wp_filter_nohtml_kses($input['caporder']);
-	$input['before'] = wp_filter_post_kses($input['before']);
-	$input['between'] = wp_filter_post_kses($input['between']);
-	$input['after'] = wp_filter_post_kses($input['after']);
-	$input['thickbox'] = wp_filter_nohtml_kses($input['thickbox']);
-	$input['license'] = $input['license'];
-	return $input;
+	$output = array();
+	$output['apikey'] = wp_filter_nohtml_kses($input['apikey']);
+	$output['usecap'] = wp_filter_nohtml_kses($input['usecap']);
+	$output['insclass'] = wp_filter_nohtml_kses($input['insclass']);
+	$output['untitled'] = wp_filter_nohtml_kses($input['untitled']);
+	$output['captions'] = wp_filter_nohtml_kses($input['captions']);
+	$output['captype'] = wp_filter_nohtml_kses($input['captype']);
+	$output['caporder'] = wp_filter_nohtml_kses($input['caporder']);
+	$output['before'] = wp_filter_post_kses($input['before']);
+	$output['between'] = wp_filter_post_kses($input['between']);
+	$output['after'] = wp_filter_post_kses($input['after']);
+	$output['thickbox'] = wp_filter_nohtml_kses($input['thickbox']);
+	$output['tbcode'] = wp_filter_nohtml_kses($input['tbcode']);
+	$output['license'] = array();
+	if (isset($input['license'])) {
+		foreach ($input['license'] as $license) {
+			$output['license'][] = (int)$license;
+		}
+	}
+	return $output;
 }
 
 // only users with "manage_options" permission should see the Options page
@@ -110,6 +107,10 @@ function flickpress_options_subpanel() {
 	}
 	if (empty($flickpress_options['usecap']))
 		$flickpress_options['usecap'] = 'edit_posts';
+	if (empty($flickpress_options['thickbox']))
+		$flickpress_options['thickbox'] = 'no';
+	if (empty($flickpress_options['tbcode']))
+		$flickpress_options['tbcode'] = '';
 	if (!empty($flickpress_options['apikey'])) {
 		if (!flickpress_check_key($flickpress_options['apikey'])) {
 			echo "\n<div class='updated fade'><p><strong>Error:</strong> Flickr may be down or very slow, your internet connection may be down or very slow, your Flickr API key may be invalid, or the Flickr API may have changed. If Flickr is up, your connection is fine, and your key is correct please check for a plugin update.</p></div>\n";
@@ -244,8 +245,7 @@ function flickpress_options_subpanel() {
 						$checked = '';
 					}
 				}
-				echo '<label for="' . $fplicense['name'] . '"> 
-<input name="flickpress_options[license][]" type="checkbox" value="' . $fplicense['id'] . '" ' . $checked . '"/> ' . $fplicense['name'] . ' <a href="' . $fplicense['url'] . '">' . __('(about)','flickpress') . '</a></label><br />';
+				echo '<label><input name="flickpress_options[license][]" type="checkbox" value="' . $fplicense['id'] . '" ' . $checked . '"/> ' . $fplicense['name'] . ' <a href="' . $fplicense['url'] . '">' . __('(about)','flickpress') . '</a></label><br />';
 			}
 		}
 	echo '
@@ -268,56 +268,76 @@ function flickpress_management() {
 	$flickpress_options = get_option('flickpress_options');
 	$table_name = $wpdb->prefix . "flickpress";
 	if (isset($_POST['flickpress_update'])) {
+		check_admin_referer();
+		$phpflickpress = new phpFlickpress($flickpress_options['apikey']);
+		$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+		$phpflickpress->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $wpdb->prefix.'flickpress_cache');
+		if (isset($_POST['flickrmail'])) {
+		if (!empty($_POST['flickrmail'])) {
+			if (strpos($_POST['flickrmail'],'@') === FALSE) {
+				$fpuseradd_info = $phpflickpress->people_findByUsername($_POST['flickrmail']);
+			} else {
+				$fpuseradd_info = $phpflickpress->people_findByEmail($_POST['flickrmail']);
+			}
+			if ($fpuseradd_info) {
+				if (flickpress_is_user($fpuseradd_info['id'])) {
+					$fpmessage = $fpuseradd_info['username'] . __(' has already been added.','flickpress');
+				} else {
+					$fpupdate_array = array('flickrid'=>$fpuseradd_info['id'],'flickrname'=>$fpuseradd_info['username']);
+					if (flickpress_update($fpupdate_array)) {
+						$fpmessage = $fpuseradd_info['username'] . __(' has been added.','flickpress');
+					} else {
+						$fpmessage =  __('Failed to add user for some reason.','flickpress');
+					}
+				}
+			} else {
+				$fpmessage =  __('No Flickr user found!','flickpress');
+			}
+		}
+		}
 		$dels = 0;
-		$updates = 0;
-		$update_array = array();
 		foreach ((array)$_POST as $val) {
 			if (isset($val['delete'])) {
 				if ($val['delete'] == '1') {
 					if (flickpress_delete($val['flickrid']))
 						$dels++;
 				}
-			} else {
-				if (!empty($val['flickrid'])) {
-					$update_array['flickrid'] = $val['flickrid'];
-					$update_array['flickrname'] = $val['flickrname'];
-					if (flickpress_update($update_array))
-						$updates++;
-				}
 			}
 		}
-		echo "<div class='updated'>";
-		if ($dels > 0)
-			echo $dels . __(' records deleted. ','flickpress');
-		if ($updates > 0)
-			echo $updates . __(' records updated.','flickpress');
-		echo "</div>\n";
+		if (($dels > 0) || (isset($fpmessage)))
+			echo "<div class='updated'>";
+		if ($dels == 1) {
+			echo __('One user removed. ','flickpress');
+		} elseif ($dels > 1) {
+			echo $dels . __(' users removed. ','flickpress');
+		}
+		if (isset($fpmessage))
+			echo $fpmessage;
+		if (($dels > 0) || (isset($fpmessage)))
+			echo "</div>\n";
 	}
 	echo '
 		  <div class="wrap">
 		  <h2>' . __('flickpress manager','flickpress') . '</h2>
 		  <p>' . __('You can manually manage flickpress users here. It is possible to add users here but that is much easier to do from the popup tool because you can look up users by email address there.','flickpress') . '</p>
 		  <form name="flickpress" method="post">
+' . wp_nonce_field('flickpress-manager') . '
 		  <p class="submit"><input type="submit" name="Submit" value="' . __('Update','flickpress') . ' &raquo;" /></p>
 		  <input type="hidden" name="flickpress_update" value="update" />
+			<p><strong>' . __('Add by email or Flickr username:','flickpress') . '</strong> <input type="text" name="flickrmail" value="" size="30" /></p>
 		  <table>
 		  <tr>
 					 <th scope="col">' . __('Flickr ID','flickpress') . '</th>
 					 <th scope="col">' . __('Flickr name','flickpress') . '</th>
 					 <th scope="col">' . __('delete','flickpress') . '</th>
 		  </tr>
-		  <tr>
-					 <td><input type="text" name="row1[flickrid]" value="" size="15" /></td>
-					 <td><input type="text" name="row1[flickrname]" value="" size="15" /></td>
-		<td></td>
-		  </tr>
 		  ';
 		  if ($flickrs = flickpress_getlist()) {
-					 $i = 2;
+					 $i = 1;
 					 foreach ((array)$flickrs as $flick) {
 								echo '<tr>
-		<td><input type="hidden" name="row' . $i . '[flickrid]" value="' . $flick['flickrid'] . '" /><input type="text" name="row' . $i . '[flickrid]" value="' . $flick['flickrid'] . '" size="15" /></td>
-					 <td><input type="text" name="row' . $i . '[flickrname]" value="' . $flick['flickrname'] . '" size="15" /></td>
+		<td><input type="hidden" name="row' . $i . '[flickrid]" value="' . $flick['flickrid'] . '" /><input type="text" disabled="disabled" name="row' . $i . '[flickrid]" value="' . $flick['flickrid'] . '" size="15" /></td>
+					 <td><a href="http://flickr.com/people/' . $flick['flickrid'] . '/">' . $flick['flickrname'] . '</a></td>
 					 <td><input type="checkbox" name="row' . $i . '[delete]" value="1" /></td>
 		  </tr>';
 								$i++;
@@ -351,7 +371,7 @@ function flickpress_table_install() {
 			response MEDIUMTEXT NOT NULL,
 			expiration DATETIME NOT NULL,
 			INDEX ( request )
-		);";
+		) DEFAULT CHARACTER SET UTF8;";
 	require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 	dbDelta($sql);
 }
@@ -380,40 +400,40 @@ register_deactivation_hook( __FILE__, 'flickpress_uninstall');
 // a simple template function to display photos in a sidebar or somesuch
 // echoes if it works, fails quietly
 function flickpress_photos($email,$numphotos=3,$before='',$after='<br />',$fpclass='centered') {
-	$concheck = @fsockopen("flickr.com", 80, $errno, $errstr, 15);
-	if (!$concheck) {
-		fclose($concheck);
-		return false;
+	global $table_prefix;
+	$flickpress_options = get_option('flickpress_options');
+	if (!flickpress_check_key($flickpress_options['apikey'])) {
+		return;
 	} else {
-		$flickpress_options = get_option('flickpress_options');
-		global $table_prefix;
-		if (isset($flickpress_options['apikey'])) {
-			$flick = new phpFlickpress($flickpress_options['apikey']);
-			$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
-			$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
-			$check = $flick->photos_getRecent(NULL,1,1);
-			if ($check['page'] == 1) {
-				$user_id = $flick->people_findByEmail($email);
-				$user_info = $flick->people_getInfo($user_id['id']);
-				$photos_url = $user_info['photosurl'];
-				$photos = $flick->people_getPublicPhotos($user_info['id'],NULL,NULL,$numphotos,1);
-				$imgcode = '';
-				foreach ((array)$photos['photos']['photo'] as $photo) {
-					$photourl = $flick->buildPhotoURL($photo, "Square");
-					$imgcode .= $before . '<a href="' . $photos_url . $photo['id'] . '"><img border="0" alt="' . $photo['title'] . '" title="' . $photo['title'] . '" src="' . $photourl . '" class="' . $fpclass . '" width="75" height="75" /></a>' . $after;
-				}
-				return $imgcode;
+		$flick = new phpFlickpress($flickpress_options['apikey']);
+		$fcon = "mysql://" . DB_USER . ":" . DB_PASSWORD . "@" . DB_HOST . "/" . DB_NAME;
+		$flick->enableCache($type = 'db', $fcon , $cache_expire = 600, $table = $table_prefix.'flickpress_cache');
+		if (isset($email)) {
+			$isemail = strpos('@',$email);
+			 if (strpos($email,'@') === FALSE) {
+				$user_id = $flick->people_findByUsername($email);
 			} else {
-				return false;
+				$user_id = $flick->people_findByEmail($email);
 			}
+			$user_info = $flick->people_getInfo($user_id['id']);
+			$photos_url = $user_info['photosurl'];
+			$photos = $flick->people_getPublicPhotos($user_info['id'],NULL,NULL,$numphotos,1);
 		} else {
-			return false;
+			return;
+		}
+		if ($photos['photos']['total'] < 1) {
+			return;
+		} else {
+			$imgcode = '';
+			foreach ((array)$photos['photos']['photo'] as $photo) {
+				$photourl = $flick->buildPhotoURL($photo, "Square");
+				$imgcode .= $before . '<a href="' . $photos_url . $photo['id'] . '"><img alt="' . $photo['title'] . '" title="' . $photo['title'] . '" src="' . $photourl . '" class="' . $fpclass . '" width="75" height="75" /></a>' . $after;
+			}
+			return $imgcode;
 		}
 	}
 }
-
-add_action('edit_form_advanced','fp_add_quicktags');
-add_action('edit_page_form','fp_add_quicktags');
+add_action( 'admin_print_footer_scripts', 'fp_add_quicktags', 100 );
 add_action('admin_print_scripts','flickpress_popup_javascript');
 add_filter('mce_external_plugins','flickpress_mce_external_plugins');
 add_filter('mce_buttons','flickpress_mce_buttons');
@@ -453,7 +473,7 @@ class flickpressWidget extends WP_Widget {
 	function update($new_instance, $old_instance) {
 		$instance = $old_instance;
 		$instance['title'] = strip_tags($new_instance['title']);
-		$instance['email'] = sanitize_email($new_instance['email']);
+		$instance['email'] = strip_tags($new_instance['email']);
 		$instance['style'] = strip_tags(stripslashes($new_instance['style']));
 		$instance['number'] = strip_tags(stripslashes($new_instance['number']));
 		if ( current_user_can('unfiltered_html') ) {
@@ -484,7 +504,7 @@ class flickpressWidget extends WP_Widget {
 
 			<p><label for="<?php echo $this->get_field_id('after'); ?>"><?php _e('After each image:'); ?> <input class="widefat" id="<?php echo $this->get_field_id('after'); ?>" name="<?php echo $this->get_field_name('after'); ?>" type="text" value="<?php echo $after; ?>" /></label></p>
 
-			<p><label for="<?php echo $this->get_field_id('email'); ?>"><?php _e('Flickr email:'); ?> <input class="widefat" id="<?php echo $this->get_field_id('email'); ?>" name="<?php echo $this->get_field_name('email'); ?>" type="text" value="<?php echo $email; ?>" /></label></p>
+			<p><label for="<?php echo $this->get_field_id('email'); ?>"><?php _e('Flickr email or username:'); ?> <input class="widefat" id="<?php echo $this->get_field_id('email'); ?>" name="<?php echo $this->get_field_name('email'); ?>" type="text" value="<?php echo $email; ?>" /></label></p>
 
 		
 			<p><label for="<?php echo $this->get_field_id('number'); ?>"><?php _e('Number of images:'); ?><select id="<?php echo $this->get_field_id('number'); ?>" name="<?php echo $this->get_field_name('number'); ?>">
