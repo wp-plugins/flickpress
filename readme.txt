@@ -2,9 +2,9 @@
 Contributors: isaacwedin
 Donate link: http://familypress.net/flickpress/
 Tags: images, photos, flickr
-Requires at least: 2.9
-Tested up to: 3.0
-Stable tag: 1.9.2
+Requires at least: 3.3
+Tested up to: 3.3
+Stable tag: 1.9.3
 
 flickpress is a tool to find Flickr photos and insert them into your posts, plus a widget to display recent Flickr photos.
 
@@ -47,9 +47,20 @@ There is a simple template function available for use in your sidebar or other s
 
 == Notes ==
 
-This plugin relies heavily on Dan Coulter's nice phpFlickr library ( <http://phpflickr.com/> ). Using more than one plugin based on the library can cause conflicts, so I renamed the class in the library included with flickpress. If you're considering creating a plugin based on flickpress I highly recommend getting the latest official version of phpFlickr instead of using this modified version.
+This plugin is really just a wrapper for Dan Coulter's excellent phpFlickr library ( <http://phpflickr.com/> ). Using more than one plugin based on the library can cause conflicts, so I renamed the class in the library included with flickpress. I also edited (maybe broke!) the database cache code, so if you're considering creating a plugin based on flickpress I highly recommend getting the latest official version of phpFlickr instead of using this modified version.
 
 == Changelog ==
+= 1.9.3 =
+* Added various things to the popup tool.
+* Added username lookup option to widget.
+* Fixed editor buttons - HTML button is now only WP 3.3+ compatible.
+* Removed mysterious "border=0" from widget display function.
+* Updated phpFlickr to 3.1, fixed various issues.
+* Check for email address before trying to get images in widget/shortcode function.
+* Got rid of some WP 2.9 specific code.
+* Better settings validation.
+* Fixed some license stuff.
+* Made the user manager suck a little less.
 
 = 1.9.2 =
 * Fixed activation issue with deprecated upgrade-functions.php.
